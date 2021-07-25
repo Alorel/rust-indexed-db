@@ -1,0 +1,57 @@
+[config]
+default_to_workspace = false
+
+[tasks.default.run_task]
+name = ["build-dev"]
+
+[tasks.watch-dev]
+run_task = {name = ["build-dev"]}
+watch = {watch = ["./src/", "./Cargo.toml"]}
+
+[tasks.build-dev]
+command = "cargo"
+args = [
+    "build"
+]
+
+[tasks.watch-dev-nightly]
+run_task = {name = ["build-dev-nightly"]}
+watch = {watch = ["./src/", "./Cargo.toml"]}
+
+[tasks.build-dev-nightly]
+toolchain="nightly"
+extend = "build-dev"
+args = [
+    "build",
+    "--features",
+    "nightly,default"
+]
+
+[tasks.watch-prod]
+run_task = {name = ["build-prod"]}
+extend = "watch-dev"
+
+[tasks.build-prod]
+extend = "build-dev"
+args = [
+    "build",
+    "--release"
+]
+
+[tasks.watch-test-chrome]
+run_task = {name = "test_chrome_local"}
+watch = {watch = ["./src/", "./Cargo.toml", "webdriver.json"]}
+
+[tasks.test_chrome_local]
+private = true
+toolchain = "nightly"
+extend = "test"
+args = ["test", "--headless", "--chrome", "--features", "nightly,default"]
+
+[tasks.test]
+command = "wasm-pack"
+args = ["test", "--headless", "${@}"]
+
+[tasks.doc]
+command = "cargo"
+args = ["doc", "--release", "--no-deps"]

@@ -1,0 +1,51 @@
+name: Test
+on:
+  - push
+  - pull_request
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Install stable toolchain
+        uses: actions-rs/toolchain@v1
+        id: install-stable
+        with:
+          toolchain: stable
+          default: true
+      - name: Install nightly toolchain
+        uses: actions-rs/toolchain@v1
+        id: install-nightly
+        with:
+          toolchain: nightly
+      - name: Cargo cache
+        uses: actions/cache@v2
+        with:
+          key: v1-${{ runner.os }}-cargo-${{ steps.install-stable.outputs.rustc_hash }}-${{ steps.install-nightly.outputs.rustc_hash }}-${{ hashFiles('**/Cargo.lock') }}
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/cargo-install/
+            target/debug/
+            target/wasm32-unknown-unknown/
+            target/.rustc_info.json
+            target/CACHEDIR.TAG
+          restore-keys: |
+            v1-${{ runner.os }}-cargo-${{ steps.install-stable.outputs.rustc_hash }}-${{ steps.install-nightly.outputs.rustc_hash }}-
+      - name: Install CLI deps
+        run: cargo install --force --debug --target-dir target/cargo-install wasm-pack
+      - name: Test (no features)
+        run: wasm-pack test --headless --firefox --chrome --locked --no-default-features
+      - name: Test (default features)
+        run: wasm-pack test --headless --firefox --chrome --locked --features default
+      - name: Test (nightly, no features)
+        run: rustup run nightly wasm-pack test --headless --firefox --chrome --locked --no-default-features --features nightly
+      - name: Test (nightly, all features)
+        run: rustup run nightly wasm-pack test --headless --firefox --chrome --locked --features default,nightly
+      - name: Dry publish
+        run: cargo publish --dry-run --locked --target wasm32-unknown-unknown && cargo package --list --locked --target wasm32-unknown-unknown
