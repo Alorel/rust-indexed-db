@@ -12,7 +12,6 @@ use {
 
 use crate::dom_string_iterator::DomStringIterator;
 use crate::idb_database::IdbDatabase;
-use crate::idb_query_source::IdbQuerySource;
 use crate::idb_transaction::IdbTransaction;
 use crate::request::VoidRequest;
 
@@ -199,3 +198,97 @@ impl<'a> IdbObjectStore<'a> {
 }
 
 impl_query_source!(IdbObjectStore<'_>);
+
+#[cfg(test)]
+pub mod test {
+    use crate::idb_query_source::IdbQuerySource;
+    use crate::internal_utils::open_any_db;
+    use web_sys::IdbTransactionMode as TxMode;
+    test_mod_init!();
+
+    test_case!(async delete => {
+        let (db, store_name) = open_any_db().await;
+
+        let tx = db.transaction_on_one_with_mode(&store_name, TxMode::Readwrite).expect("tx1 open");
+        let store = tx.object_store(&store_name).expect("store1 open");
+
+        store.add_key_val_owned("foo", &JsValue::from("qux")).expect("add");
+        store.add_key_val_owned("bar", &JsValue::from("qux")).expect("add");
+        tx.await.into_result().expect("tx1_await");
+
+        let tx = db.transaction_on_one_with_mode(&store_name, TxMode::Readwrite).expect("tx2 open");
+        let store = tx.object_store(&store_name).expect("store2 open");
+        store.delete_owned("bar").expect("delete");
+        tx.await.into_result().expect("delete await");
+
+        let tx = db.transaction_on_one(&store_name).expect("tx3 open");
+        let store = tx.object_store(&store_name).expect("store 3 open");
+
+        let foo = store.get_owned("foo").expect("get_foo");
+        let bar = store.get_owned("bar").expect("get_bar");
+
+        let foo = foo.await.expect("get_foo await");
+        let bar = bar.await.expect("get_bar await");
+
+        assert_eq!(foo, Some(JsValue::from("qux")));
+        assert_eq!(bar, None);
+    });
+
+    test_case!(async clear => {
+        let (db, store_name) = open_any_db().await;
+
+        let tx = db.transaction_on_one_with_mode(&store_name, TxMode::Readwrite).expect("tx1 open");
+        let store = tx.object_store(&store_name).expect("store1 open");
+
+        store.add_key_val_owned("foo", &JsValue::from("bar")).expect("add");
+        tx.await.into_result().expect("tx1_await");
+
+        let tx = db.transaction_on_one_with_mode(&store_name, TxMode::Readwrite).expect("tx2 open");
+        let store = tx.object_store(&store_name).expect("store2 open");
+        store.clear().expect("clear").into_future().await.expect("clear await");
+
+        let tx = db.transaction_on_one(&store_name).expect("tx3 open");
+        let store = tx.object_store(&store_name).expect("store 3 open");
+        let all = store.get_all().expect("get_all").await.expect("get_all await");
+
+        assert_eq!(all.length(), 0, "length");
+    });
+
+    test_case!(async db_and_transaction => {
+        let (db, store_name) = open_any_db().await;
+        let tx = db.transaction_on_one(&store_name).expect("tx");
+        let store = tx.object_store(&store_name).expect("store");
+
+        assert!(store.transaction().is_some(), "tx");
+        assert_eq!(store.db().name(), db.name(), "db");
+    });
+
+    #[cfg(feature = "indices")]
+    pub mod indices {
+        use crate::prelude::*;
+        use uuid::Uuid;
+        test_mod_init!();
+
+        test_case!(async index_names => {
+            let db_name = Uuid::new_v4().to_string();
+            let store_name = Uuid::new_v4().to_string();
+            let mut req = crate::IdbDatabase::open(&db_name).expect("db open");
+            {
+                let store_cloned = store_name.clone();
+                req.set_on_upgrade_needed(Some(move |evt: &IdbVersionChangeEvent| {
+                    let store = evt.db().create_object_store(&store_cloned)?;
+                    store.create_index("idx1", &IdbKeyPath::str("foo"))?;
+                    store.create_index("idx2", &IdbKeyPath::str("foo"))?;
+                    Ok(())
+                }));
+            }
+            let db = req.into_future().await.expect("db await");
+            let tx = db.transaction_on_one(&store_name).expect("tx");
+            let store = tx.object_store(&store_name).expect("store");
+            let mut idx_names: Vec<String> = store.index_names().collect();
+            idx_names.sort();
+
+            assert_eq!(idx_names, vec!["idx1", "idx2"]);
+        });
+    }
+}
