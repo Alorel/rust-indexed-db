@@ -1,3 +1,4 @@
+use std::cell::RefMut;
 use std::ops::Deref;
 use std::task::Poll;
 use std::{
@@ -60,35 +61,36 @@ impl IdbTransactionListeners {
     }
 }
 
+fn try_get_result_ref(result: &ResultRef) -> Option<RefMut<Option<IdbTransactionResult>>> {
+    if let Ok(v) = result.try_borrow_mut() {
+        if v.is_none() {
+            return Some(v);
+        }
+    }
+    None
+}
+
 fn error_callback(waker: WakerRef, result: ResultRef) -> Closure<ErrCb> {
+    fn extract_error(evt: web_sys::Event) -> Option<web_sys::DomException> {
+        if let Some(tgt) = evt.target() {
+            let req: web_sys::IdbRequest = tgt.unchecked_into();
+            req.error()
+                .expect("Error unreachable on an errored transaction")
+        } else {
+            None
+        }
+    }
+
     /// Returns true if the waker should be called
     fn process(evt: web_sys::Event, result: &ResultRef) -> bool {
-        let req: web_sys::IdbRequest = match evt.target() {
-            Some(t) => t.unchecked_into(),
-            None => {
-                return false;
-            }
-        };
-        let err = if let Some(err) = req
-            .error()
-            .expect("Error unreachable on an errored transaction")
-        {
-            err
-        } else {
-            return false;
-        };
-        let mut result_ref = if let Ok(result_ref) = result.try_borrow_mut() {
-            result_ref
-        } else {
-            return false;
-        };
+        if let Some(mut res) = try_get_result_ref(result) {
+            if let Some(err) = extract_error(evt) {
+                res.replace(IdbTransactionResult::Error(err));
 
-        if result_ref.is_none() {
-            result_ref.replace(IdbTransactionResult::Error(err));
-            true
-        } else {
-            false
+                return true;
+            }
         }
+        false
     }
     let b = Box::new(move |e: web_sys::Event| {
         if process(e, &result) {
@@ -101,14 +103,8 @@ fn error_callback(waker: WakerRef, result: ResultRef) -> Closure<ErrCb> {
 fn base_callback(waker: WakerRef, result: ResultRef, kind: IdbTransactionResult) -> Closure<Cb> {
     /// Returns true if the waker should be called
     fn process(result: &ResultRef, kind: IdbTransactionResult) -> bool {
-        let mut result_ref = if let Ok(v) = result.try_borrow_mut() {
-            v
-        } else {
-            return false;
-        };
-        if result_ref.is_none() {
-            result_ref.replace(kind.clone()); // Clone so this can be Fn and not FnOnce
-
+        if let Some(mut v) = try_get_result_ref(result) {
+            v.replace(kind.clone());
             true
         } else {
             false
