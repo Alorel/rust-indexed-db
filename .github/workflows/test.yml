@@ -37,6 +37,7 @@ jobs:
             target/CACHEDIR.TAG
           restore-keys: |
             v1-${{ runner.os }}-cargo-${{ steps.install-stable.outputs.rustc_hash }}-${{ steps.install-nightly.outputs.rustc_hash }}-
+            v1-${{ runner.os }}-cargo-${{ steps.install-stable.outputs.rustc_hash }}-
       - name: Install CLI deps
         run: cargo install --force --debug --target-dir target/cargo-install wasm-pack
       - name: Test (no features)
