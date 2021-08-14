@@ -179,12 +179,6 @@ impl<'a> IdbObjectStore<'a> {
         &self.tx
     }
 
-    /// Delete this object store
-    #[inline]
-    pub fn delete_object_store(self) -> Result<(), DomException> {
-        self.db().delete_object_store(&self.name())
-    }
-
     /// Delete the record at the with the given key
     pub fn delete<K: JsCast>(&self, key: &K) -> Result<VoidRequest, DomException> {
         Ok(VoidRequest::new(self.inner.delete(key.unchecked_ref())?))
