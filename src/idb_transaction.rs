@@ -93,6 +93,49 @@ impl Future for IdbTransaction<'_> {
 
     #[inline]
     fn poll(self: Pin<&mut Self>, ctx: &mut Context<'_>) -> Poll<Self::Output> {
-        self.listeners.do_poll(&self.inner, ctx)
+        self.listeners.do_poll(ctx)
+    }
+}
+
+#[cfg(test)]
+pub mod test {
+    pub mod future {
+        use crate::internal_utils::open_any_db;
+        use crate::prelude::{IdbTransactionMode, IdbTransactionResult};
+
+        test_mod_init!();
+
+        test_case!(async should_return_object_store_names => {
+            let (db, store_name) = open_any_db().await;
+            let tx = db.transaction_on_multi(&[store_name.as_str()]).expect("tx");
+            let store_names: Vec<String> = tx.object_store_names().collect();
+
+            assert_eq!(store_names, vec![store_name; 1]);
+        });
+
+        test_case!(async should_resolve_on_success => {
+            let (db, store_name) = open_any_db().await;
+            let tx = db.transaction_on_one_with_mode(&store_name, IdbTransactionMode::Readwrite).expect("tx");
+            let store = tx.object_store(&store_name).expect("store");
+
+            store.put_key_val_owned("foo", &JsValue::from("bar")).expect("put");
+            assert!(tx.await.into_result().is_ok(), "result");
+        });
+
+        test_case!(async should_propagate_errors => {
+            let (db, store_name) = open_any_db().await;
+            let tx = db.transaction_on_one_with_mode(&store_name, IdbTransactionMode::Readwrite).expect("tx");
+            let store = tx.object_store(&store_name).expect("store");
+
+            store.add_key_val_owned("foo", &JsValue::from("bar")).expect("put 1");
+            store.add_key_val_owned("foo", &JsValue::from("qux")).expect("put 2");
+            match tx.await {
+                IdbTransactionResult::Abort => panic!("Aborted"),
+                IdbTransactionResult::Success => panic!("Didn't error"),
+                IdbTransactionResult::Error(_) => {
+                    // Pass; don't check error message as it differs across browsers
+                }
+            };
+        });
     }
 }
