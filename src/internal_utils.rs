@@ -6,6 +6,22 @@ use std::task::Waker;
 use cfg_if::cfg_if;
 use wasm_bindgen::prelude::*;
 
+#[cfg(test)]
+pub(crate) async fn open_any_db() -> (crate::IdbDatabase, String) {
+    use crate::prelude::*;
+
+    let db = uuid::Uuid::new_v4().to_string();
+    let store = uuid::Uuid::new_v4().to_string();
+    let mut req = crate::IdbDatabase::open(&db).expect("db open");
+    let store_cloned = store.clone();
+    req.set_on_upgrade_needed(Some(move |evt: &IdbVersionChangeEvent| {
+        evt.db().create_object_store(&store_cloned)?;
+        Ok(())
+    }));
+
+    (req.into_future().await.expect("fut"), store)
+}
+
 /// unwrap_unchecked if running in nightly, else just unwrap
 #[inline]
 pub(crate) fn safe_unwrap_option<T>(option: Option<T>) -> T {
