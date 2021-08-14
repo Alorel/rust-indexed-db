@@ -100,12 +100,6 @@ impl IdbObjectStore<'_> {
         self.put_key_val(&key.into(), val)
     }
 
-    /// A list of the names of indices on objects in this object store.
-    #[inline]
-    pub fn index_names(&self) -> impl Iterator<Item = String> {
-        DomStringIterator::from(self.inner.index_names())
-    }
-
     /// The value of the auto increment flag for this object store.
     #[inline]
     pub fn auto_increment(&self) -> bool {
@@ -115,6 +109,14 @@ impl IdbObjectStore<'_> {
     // Indices
     cfg_if::cfg_if! {
         if #[cfg(feature = "indices")] {
+
+            /// A list of the names of indices on objects in this object store.
+            ///
+            /// Features required: `indices`
+            #[inline]
+            pub fn index_names(&self) -> impl Iterator<Item = String> {
+                DomStringIterator::from(self.inner.index_names())
+            }
 
             /// Create an index at the given key path
             ///
