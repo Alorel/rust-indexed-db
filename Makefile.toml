@@ -46,7 +46,7 @@ watch = {watch = ["./src/", "./Cargo.toml", "webdriver.json"]}
 private = true
 toolchain = "nightly"
 extend = "test"
-args = ["test", "--headless", "--chrome", "--features", "nightly,default"]
+args = ["test", "--headless", "--chrome", "--all-features"]
 
 [tasks.test]
 command = "wasm-pack"
