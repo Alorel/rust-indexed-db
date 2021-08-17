@@ -135,7 +135,7 @@ async function run() {
 
   // Generate markdown
   for (const [type, commits] of Object.entries(grouped)) {
-    out.push('', `# ${type}`, '');
+    out.push('', `### ${type}`, '');
 
     for (const {scope, msg, hash, closes} of commits) {
       let append = '- ';
