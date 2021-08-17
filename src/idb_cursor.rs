@@ -1,6 +1,40 @@
 //! Cursor-related code
 //!
 //! Features required: `cursors`
+//!
+//! ## Examples
+//!
+// use super::{*, prelude::*};
+// use wasm_bindgen::prelude::*;
+// use web_sys::DomException;
+//
+// #[allow(unused_variables)]
+// async fn example() -> Result<(), DomException> {
+//     let db = IdbDatabase::open("foo_db")?.into_future().await?;
+//     let tx = db.transaction_on_one("foo_store")?;
+//     let object_store = tx.object_store("foo_store")?;
+//
+//!     match object_store.open_cursor()?.await? {
+//!         Some(cursor) => {
+//!             let first_key: JsValue = cursor.key().unwrap();
+//!             let first_value: JsValue = cursor.value();
+//!
+//!             // Iterate one by one
+//!             while cursor.continue_cursor()?.await? {
+//!                 let subsequent_key: JsValue = cursor.key().unwrap();
+//!                 let subsequent_value: JsValue = cursor.value();
+//!             }
+//!
+//!             // Or collect the remainder into a vector
+//!             let cursor_contents: Vec<KeyVal> = cursor.into_vec(0).await?;
+//!         },
+//!         None => {
+//!             // No elements matched
+//!         }
+//!     };
+//
+//         Ok(())
+//     }
 
 use std::future::Future;
 use std::rc::Rc;
