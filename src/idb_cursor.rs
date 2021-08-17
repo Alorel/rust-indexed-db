@@ -169,3 +169,168 @@ impl<'a, T: IdbQuerySource> IdbCursor<'a, T> {
         JsCastRequestFuture::new(self.inner.update(value.unchecked_ref()))
     }
 }
+
+#[cfg(test)]
+pub mod test {
+    use wasm_bindgen::prelude::*;
+    use web_sys::DomException;
+
+    use crate::internal_utils::open_any_db;
+    use crate::prelude::*;
+
+    test_mod_init!();
+
+    async fn insert_dummy_data(db: &IdbDatabase, store_name: &str) {
+        let tx = db
+            .transaction_on_one_with_mode(store_name, IdbTransactionMode::Readwrite)
+            .expect("Start insert tx open");
+        let store = tx.object_store(store_name).expect("Start insert store");
+
+        fn add_values(store: &IdbObjectStore) -> Result<(), DomException> {
+            store.add_key_val_owned("k1", &JsValue::from(1u8))?;
+            store.add_key_val_owned("k2", &JsValue::from(2u8))?;
+            store.add_key_val_owned("k3", &JsValue::from(3u8))?;
+            store.add_key_val_owned("k4", &JsValue::from(4u8))?;
+            Ok(())
+        }
+
+        add_values(&store).expect("Start insert add_values");
+        tx.await.into_result().expect("Start insert tx await");
+    }
+
+    async fn open_dummy_db() -> (IdbDatabase, String) {
+        let ret = open_any_db().await;
+        insert_dummy_data(&ret.0, &ret.1).await;
+        ret
+    }
+
+    fn map_key(k: Option<JsValue>) -> Option<String> {
+        Some(k?.as_string()?)
+    }
+
+    fn map_value(v: JsValue) -> u8 {
+        v.as_f64().expect("failed to unwrap value as f64") as u8
+    }
+
+    async fn do_continue_cursor<'a>(cur: &'a IdbCursor<'a, IdbObjectStore<'a>>) -> bool {
+        cur.continue_cursor()
+            .expect("continue_cursor")
+            .await
+            .expect("continue_cursor_await")
+    }
+
+    async fn open_cur<'a>(
+        store: &'a IdbObjectStore<'a>,
+    ) -> IdbCursorWithValue<'a, IdbObjectStore<'a>> {
+        store
+            .open_cursor()
+            .expect("open_cursor")
+            .await
+            .expect("open_cursor await")
+            .expect("initial cursor empty")
+    }
+
+    test_case!(async idb_cursor_to_vec => {
+        let (db, store_name) = open_dummy_db().await;
+        let tx = db.transaction_on_one(&store_name).unwrap();
+        let store = tx.object_store(&store_name).unwrap();
+        let cur = store.open_key_cursor().unwrap().await.unwrap().unwrap();
+        let cur: Vec<String> = cur.into_vec(2).await.unwrap()
+          .into_iter()
+          .map(|v| v.as_string().unwrap())
+          .collect();
+        let exp: Vec<String> = vec!["k3".into(), "k4".into()];
+
+        assert_eq!(cur, exp);
+    });
+
+    test_case!(async delete_and_update => {
+        let (db, store_name) = open_dummy_db().await;
+        let tx = db.transaction_on_one_with_mode(&store_name, IdbTransactionMode::Readwrite)
+            .unwrap();
+        let store = tx.object_store(&store_name).unwrap();
+        let cur = open_cur(&store).await;
+
+        async fn process<'a>(cur: &'a IdbCursorWithValue<'a, IdbObjectStore<'a>>) {
+            let key = map_key(cur.key()).expect("unwrap_key");
+            if key.as_str() == "k3" {
+                cur.delete().expect("delete").into_future().await.expect("delete await");
+            } else if key.as_str() == "k4" {
+                cur.update(&JsValue::from(100u8)).expect("update").await.expect("update await");
+            }
+        }
+
+        process(&cur).await;
+        while do_continue_cursor(&cur).await {
+            process(&cur).await;
+        }
+
+        tx.await.into_result().expect("first tx await");
+
+        let tx = db.transaction_on_one(&store_name).unwrap();
+        let store = tx.object_store(&store_name).unwrap();
+        let mut cur = open_cur(&store).await.into_vec(1).await.unwrap();
+        cur.sort_by(|a, b| a.key().as_string().cmp(&b.key().as_string()));
+
+        let expected = vec![
+            KeyVal::new("k2".into(), JsValue::from(2u8)),
+            KeyVal::new("k4".into(), JsValue::from(100u8))
+        ];
+
+        assert_eq!(cur, expected);
+    });
+
+    pub mod iteration {
+        test_mod_init!();
+
+        test_case!(async cursor => {
+            let (db, store_name) = open_dummy_db().await;
+            let tx = db.transaction_on_one(&store_name).unwrap();
+            let store = tx.object_store(&store_name).unwrap();
+            let cur = open_cur(&store).await;
+
+            let mut result: Vec<(String, u8)> = Vec::with_capacity(4);
+            result.push((map_key(cur.key()).unwrap(), map_value(cur.value())));
+            while do_continue_cursor(&cur).await {
+                result.push((map_key(cur.key()).unwrap(), map_value(cur.value())));
+            }
+
+            let exp = vec![
+                ("k1".into(), 1),
+                ("k2".into(), 2),
+                ("k3".into(), 3),
+                ("k4".into(), 4)
+            ];
+
+            assert_eq!(result, exp);
+        });
+
+        test_case!(async key_cursor => {
+            let (db, store_name) = open_dummy_db().await;
+            let tx = db.transaction_on_one(&store_name).unwrap();
+            let store = tx.object_store(&store_name).unwrap();
+            let cur = store
+                .open_key_cursor()
+                .expect("open_key_cursor")
+                .await
+                .expect("open_key_cursor await")
+                .expect("initial cursor empty");
+
+            let mut result: Vec<Option<String>> = Vec::with_capacity(3);
+            result.push(map_key(cur.key()));
+            {
+                let r = cur.advance(2).expect("advance").await.expect("advance await");
+                assert!(r, "advance result");
+            }
+            result.push(map_key(cur.key()));
+            while do_continue_cursor(&cur).await {
+                result.push(map_key(cur.key()));
+            }
+            result.sort();
+
+            let exp = vec![Some("k1".into()), Some("k3".into()), Some("k4".into())];
+
+            assert_eq!(result, exp);
+        });
+    }
+}
