@@ -108,6 +108,54 @@ impl<'a, T: IdbQuerySource> IdbCursor<'a, T> {
         Ok(self.continue_common())
     }
 
+    /// Internal [IdbCursor::into_vec] handler
+    async fn handle_into_vec<F, O>(&self, skip: u32, mapper: F) -> Result<Vec<O>, DomException>
+    where
+        F: Fn(JsValue) -> O,
+    {
+        if skip != 0 && !self.advance(skip)?.await? {
+            return Ok(Vec::new());
+        }
+
+        let mut out = match self.key() {
+            Some(v) => {
+                let mut out = Vec::with_capacity(1);
+                out.push(mapper(v));
+                out
+            }
+            None => {
+                return Ok(Vec::new());
+            }
+        };
+
+        while self.continue_cursor()?.await? {
+            match self.key() {
+                Some(key) => {
+                    out.push(mapper(key));
+                }
+                None => {
+                    break;
+                }
+            }
+        }
+
+        Ok(out)
+    }
+
+    /// Consume the remainder of the cursor, collecting each key into a vector.
+    ///
+    /// ### Arguments
+    ///
+    /// - **skip** - how many times to advance the cursor before starting to collect keys. Setting
+    /// this to 0 will include the current key and value in the output; setting it to 5 will skip
+    /// the current key + value and 4 more.
+    pub async fn into_vec(self, skip: u32) -> Result<Vec<JsValue>, DomException> {
+        fn passthrough(v: JsValue) -> JsValue {
+            v
+        }
+        self.handle_into_vec(skip, passthrough).await
+    }
+
     /// Delete the record at the cursor's position, without changing the cursor's position
     pub fn delete(&self) -> Result<VoidRequest, DomException> {
         Ok(VoidRequest::new(self.inner.delete()?))
