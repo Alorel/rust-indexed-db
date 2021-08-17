@@ -40,13 +40,11 @@ jobs:
             v1-${{ runner.os }}-cargo-${{ steps.install-stable.outputs.rustc_hash }}-
       - name: Install CLI deps
         run: cargo install --force --debug --target-dir target/cargo-install wasm-pack
-      - name: Test (no features)
+      - name: Test (stable, no features)
         run: wasm-pack test --headless --firefox --chrome --locked --no-default-features
-      - name: Test (default features)
-        run: wasm-pack test --headless --firefox --chrome --locked --features default
       - name: Test (nightly, no features)
         run: rustup run nightly wasm-pack test --headless --firefox --chrome --locked --no-default-features --features nightly
       - name: Test (nightly, all features)
         run: rustup run nightly wasm-pack test --headless --firefox --chrome --locked --features default,nightly
-      - name: Dry publish
-        run: cargo publish --dry-run --locked --target wasm32-unknown-unknown && cargo package --list --locked --target wasm32-unknown-unknown
+      - name: List package contents
+        run: cargo package --list --locked --target wasm32-unknown-unknown
