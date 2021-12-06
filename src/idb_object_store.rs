@@ -110,6 +110,23 @@ impl IdbObjectStore<'_> {
     cfg_if::cfg_if! {
         if #[cfg(feature = "indices")] {
 
+            /// Open a named index in the current object store
+            ///
+            /// Features required: `indices`
+            #[inline]
+            pub fn index(&self, name: &str) -> Result<IdbIndex, DomException> {
+                Ok(IdbIndex::new(self.inner.index(name)?, self))
+            }
+
+            /// Destroy a named index in the current object store. Only usable within a version
+            /// change transaction.
+            ///
+            /// Features required: `indices`
+            #[inline]
+            pub fn delete_index(&self, name: &str) -> Result<(), DomException> {
+                Ok(self.inner.delete_index(name)?)
+            }
+
             /// A list of the names of indices on objects in this object store.
             ///
             /// Features required: `indices`
@@ -265,17 +282,42 @@ pub mod test {
         use uuid::Uuid;
         test_mod_init!();
 
-        test_case!(async index_names => {
-            let db_name = Uuid::new_v4().to_string();
-            let store_name = Uuid::new_v4().to_string();
+        #[inline]
+        fn gen_names() -> [String; 2] {
+            [Uuid::new_v4().to_string(), Uuid::new_v4().to_string()]
+        }
+
+        test_case!(async index => {
+            let [db_name, store_name] = gen_names();
             let mut req = crate::IdbDatabase::open(&db_name).expect("db open");
             {
-                let store_cloned = store_name.clone();
+                let store_name = store_name.clone();
                 req.set_on_upgrade_needed(Some(move |evt: &IdbVersionChangeEvent| {
-                    let store = evt.db().create_object_store(&store_cloned)?;
-                    store.create_index("idx1", &IdbKeyPath::str("foo"))?;
-                    store.create_index("idx2", &IdbKeyPath::str("foo"))?;
+                    let store = evt.db().create_object_store(&store_name)?;
+                    store.create_index("created_idx", &IdbKeyPath::str("foo"))?;
                     Ok(())
+                }));
+            }
+            let db = req.into_future().await.expect("db await");
+            let tx = db.transaction_on_one(&store_name).expect("tx");
+            let store = tx.object_store(&store_name).expect("store");
+            let idx = store.index("created_idx").expect("get idx");
+
+            assert_eq!(idx.name(), String::from("created_idx"));
+        });
+
+        test_case!(async index_names_and_deletion => {
+            let [db_name, store_name] = gen_names();
+            let mut req = crate::IdbDatabase::open(&db_name).expect("db open");
+            {
+                let store_name = store_name.clone();
+                req.set_on_upgrade_needed(Some(move |evt: &IdbVersionChangeEvent| {
+                  let store = evt.db().create_object_store(&store_name)?;
+                  store.create_index("idx1", &IdbKeyPath::str("foo"))?;
+                  store.create_index("idx2", &IdbKeyPath::str("foo"))?;
+                  store.create_index("idx3", &IdbKeyPath::str("foo"))?;
+                  store.delete_index("idx2")?;
+                  Ok(())
                 }));
             }
             let db = req.into_future().await.expect("db await");
@@ -284,7 +326,7 @@ pub mod test {
             let mut idx_names: Vec<String> = store.index_names().collect();
             idx_names.sort();
 
-            assert_eq!(idx_names, vec!["idx1", "idx2"]);
+            assert_eq!(idx_names, vec!["idx1", "idx3"]);
         });
     }
 }
