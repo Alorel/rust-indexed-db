@@ -1,6 +1,6 @@
 [package]
 name = "indexed_db_futures"
-version = "0.2.1"
+version = "0.2.2"
 authors = ["Arturas Molcanovas <amolc@protonmail.com>"]
 edition = "2018"
 license = "MIT"
