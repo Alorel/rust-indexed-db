@@ -62,5 +62,6 @@ features = [
     "IdbTransaction",
     "IdbTransactionMode",
     "IdbVersionChangeEvent",
-    "Window"
+    "Window",
+    "WorkerGlobalScope",
 ]
