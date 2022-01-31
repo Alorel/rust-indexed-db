@@ -198,7 +198,34 @@ impl Drop for IdbDatabase {
 impl_display_for_named!(IdbDatabase);
 
 fn factory() -> web_sys::IdbFactory {
-    web_sys::window().unwrap().indexed_db().unwrap().unwrap()
+    #[wasm_bindgen]
+    extern "C" {
+        type Global;
+
+        #[wasm_bindgen(method, getter, js_name = Window)]
+        fn window(this: &Global) -> JsValue;
+
+        #[wasm_bindgen(method, getter, js_name = WorkerGlobalScope)]
+        fn worker(this: &Global) -> JsValue;
+    }
+
+    let global: Global = js_sys::global().unchecked_into();
+
+    if !global.window().is_undefined() {
+        global
+            .unchecked_into::<web_sys::Window>()
+            .indexed_db()
+            .unwrap()
+            .unwrap()
+    } else if !global.worker().is_undefined() {
+        global
+            .unchecked_into::<web_sys::WorkerGlobalScope>()
+            .indexed_db()
+            .unwrap()
+            .unwrap()
+    } else {
+        panic!("Only supported in a browser or web worker");
+    }
 }
 
 #[cfg(test)]
