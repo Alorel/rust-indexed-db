@@ -207,6 +207,17 @@ fn factory() -> web_sys::IdbFactory {
 
         #[wasm_bindgen(method, getter, js_name = WorkerGlobalScope)]
         fn worker(this: &Global) -> JsValue;
+
+        #[wasm_bindgen(method, getter, js_name = global)]
+        fn node_global(this: &Global) -> JsValue;
+    }
+
+    #[wasm_bindgen]
+    extern "C" {
+        type NodeGlobal;
+
+        #[wasm_bindgen(method, getter, catch, js_name = indexedDB)]
+        fn indexed_db(this: &NodeGlobal) -> Result<Option<web_sys::IdbFactory>, JsValue>;
     }
 
     let global: Global = js_sys::global().unchecked_into();
@@ -215,16 +226,24 @@ fn factory() -> web_sys::IdbFactory {
         global
             .unchecked_into::<web_sys::Window>()
             .indexed_db()
-            .unwrap()
-            .unwrap()
+            .expect("No `indexedDB` getter in `Window`")
+            .expect("The `indexedDB` getter returned `null` or `undefined`")
     } else if !global.worker().is_undefined() {
         global
             .unchecked_into::<web_sys::WorkerGlobalScope>()
             .indexed_db()
-            .unwrap()
-            .unwrap()
+            .expect("No `indexedDB` getter in `WorkerGlobalScope`")
+            .expect("The `indexedDB` getter returned `null` or `undefined`")
+    } else if !global.node_global().is_undefined() {
+        global
+            .unchecked_into::<NodeGlobal>()
+            .indexed_db()
+            .expect("No `indexedDB` getter in the Node.js `global` environment")
+            .expect("The `indexedDB` getter returned `null` or `undefined`")
     } else {
-        panic!("Only supported in a browser or web worker");
+        panic!(
+            "Only supported in a browser, or web worker, or Node.js with a polyfill for IndexedDB"
+        );
     }
 }
 
