@@ -1,23 +1,12 @@
-name: Test
+name: Release
 on:
-  push:
-    branches:
-      - '**'
-    paths:
-      - '**.rs'
-      - '**.toml'
-      - webdriver.json
-      - .github/workflows/test.yml
-  pull_request:
+  release:
     types:
-      - synchronize
-      - opened
-  schedule:
-    - cron: 0 7 * * 6
+      - created
 
 jobs:
-  test:
-    name: Test
+  release:
+    name: Release
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -28,11 +17,6 @@ jobs:
         with:
           toolchain: stable
           default: true
-      - name: Install nightly toolchain
-        uses: actions-rs/toolchain@v1
-        id: install-nightly
-        with:
-          toolchain: nightly
       - name: Cargo cache
         uses: actions/cache@v3
         with:
@@ -58,11 +42,7 @@ jobs:
         run: wasm-pack test --headless --firefox --chrome --locked --no-default-features
       - name: Test (stable, all features)
         run: wasm-pack test --headless --firefox --chrome --locked
-      - name: Test (nightly, no features)
-        run: rustup run nightly wasm-pack test --headless --firefox --chrome --locked --no-default-features --features nightly
-      - name: Test (nightly, all features)
-        run: rustup run nightly wasm-pack test --headless --firefox --chrome --locked --features default,nightly
-      - name: Test doc generation
-        run: cargo doc --no-deps
       - name: List package contents
         run: cargo package --list --locked --target wasm32-unknown-unknown
+      - name: Release
+        run: cargo publish --target wasm32-unknown-unknown --locked --token ${{ secrets.CRATES_IO_TOKEN }}
