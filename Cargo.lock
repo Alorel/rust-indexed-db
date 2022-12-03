@@ -39,7 +39,7 @@ dependencies = [
 
 [[package]]
 name = "indexed_db_futures"
-version = "0.2.4"
+version = "0.3.0"
 dependencies = [
  "cfg-if",
  "js-sys",

@@ -1,6 +1,6 @@
 [package]
 name = "indexed_db_futures"
-version = "0.2.4"
+version = "0.3.0"
 authors = ["Arturas Molcanovas <amolc@protonmail.com>"]
 edition = "2021"
 rust-version = "1.58.0"
