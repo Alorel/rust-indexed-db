@@ -32,7 +32,7 @@ jobs:
       - name: Cargo cache
         uses: actions/cache@v3
         with:
-          key: v1-${{ runner.os }}-cargo-${{ steps.install-stable.outputs.rustc_hash }}-${{ steps.install-nightly.outputs.rustc_hash }}-${{ hashFiles('**/Cargo.lock') }}-${{ github.ref }}
+          key: v1-${{ runner.os }}-cargo-${{ steps.install-stable.outputs.rustc_hash }}-${{ steps.install-nightly.outputs.rustc_hash }}-${{ github.ref }}-${{ hashFiles('**/Cargo.lock') }}
           path: |
             ~/.cargo/bin/
             ~/.cargo/registry/index/
@@ -44,7 +44,8 @@ jobs:
             target/.rustc_info.json
             target/CACHEDIR.TAG
           restore-keys: |
-            v1-${{ runner.os }}-cargo-${{ steps.install-stable.outputs.rustc_hash }}-${{ steps.install-nightly.outputs.rustc_hash }}-${{ hashFiles('**/Cargo.lock') }}-refs/heads/master
+            v1-${{ runner.os }}-cargo-${{ steps.install-stable.outputs.rustc_hash }}-${{ steps.install-nightly.outputs.rustc_hash }}-refs/heads/master-${{ hashFiles('**/Cargo.lock') }}
+            v1-${{ runner.os }}-cargo-${{ steps.install-stable.outputs.rustc_hash }}-${{ steps.install-nightly.outputs.rustc_hash }}-refs/heads/master-
             v1-${{ runner.os }}-cargo-${{ steps.install-stable.outputs.rustc_hash }}-${{ steps.install-nightly.outputs.rustc_hash }}-
             v1-${{ runner.os }}-cargo-${{ steps.install-stable.outputs.rustc_hash }}-
       - name: Install CLI deps
