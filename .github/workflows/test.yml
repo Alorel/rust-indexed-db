@@ -9,7 +9,8 @@ on:
       - webdriver.json
       - .github/workflows/test.yml
   pull_request:
-    - synchronize
+    types:
+      - synchronize
   schedule:
     - cron: 0 7 * * 6
 
