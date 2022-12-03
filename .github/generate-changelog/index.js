@@ -29,7 +29,7 @@ typeLabels.ci = typeLabels.build;
 typeLabels.feature = typeLabels.feat;
 typeLabels.tests = typeLabels.test;
 
-const git = require('simple-git/promise')(__dirname);
+const git = require('simple-git')(__dirname);
 const groupBy = require('lodash/groupBy');
 const {EOL} = require('os');
 

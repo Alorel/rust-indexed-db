@@ -11,13 +11,13 @@ use super::{super::OpenDbRequestListeners, IdbRequestFuture};
 #[derive(Debug)]
 pub(crate) struct IdbOpenDbRequestFuture {
     base: IdbRequestFuture,
-    listeners: OpenDbRequestListeners,
+    _listeners: OpenDbRequestListeners,
 }
 
 impl IdbOpenDbRequestFuture {
     #[inline]
     pub fn new(base: IdbRequestFuture, listeners: OpenDbRequestListeners) -> Self {
-        Self { base, listeners }
+        Self { base, _listeners: listeners }
     }
 }
 
