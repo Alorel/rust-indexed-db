@@ -23,9 +23,9 @@ type ResultRef = Rc<RefCell<Option<IdbTransactionResult>>>;
 pub(crate) struct IdbTransactionListeners {
     waker: WakerRef,
     result: ResultRef,
-    on_success: Closure<Cb>,
-    on_abort: Closure<Cb>,
-    on_error: Closure<ErrCb>,
+    _on_success: Closure<Cb>,
+    _on_abort: Closure<Cb>,
+    _on_error: Closure<ErrCb>,
 }
 
 impl IdbTransactionListeners {
@@ -45,9 +45,9 @@ impl IdbTransactionListeners {
         Self {
             waker,
             result,
-            on_error,
-            on_success,
-            on_abort,
+            _on_error: on_error,
+            _on_success: on_success,
+            _on_abort: on_abort,
         }
     }
 

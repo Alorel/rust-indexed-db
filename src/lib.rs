@@ -1,5 +1,3 @@
-#![cfg_attr(feature = "nightly", feature(option_result_unwrap_unchecked))]
-
 //! Wraps the [web_sys](https://crates.io/crates/web_sys) Indexed DB API in a Future-based API and
 //! removes the pain of dealing with Javascript callbacks in Rust.
 //!

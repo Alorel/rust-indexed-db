@@ -43,7 +43,6 @@ run_task = {name = "test_chrome_local"}
 watch = {watch = ["./src/", "./Cargo.toml", "webdriver.json"]}
 
 [tasks.test_chrome_local]
-private = true
 toolchain = "nightly"
 extend = "test"
 args = ["test", "--headless", "--chrome", "--all-features"]

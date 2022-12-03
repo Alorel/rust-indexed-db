@@ -1,7 +1,15 @@
 name: Test
 on:
-  - push
-  - pull_request
+  push:
+    branches:
+      - '**'
+    paths:
+      - '**.rs'
+      - '**.toml'
+      - webdriver.json
+      - .github/workflows/test.yml
+  schedule:
+    - cron: 0 7 * * 6
 
 jobs:
   test:
@@ -9,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Install stable toolchain
         uses: actions-rs/toolchain@v1
         id: install-stable
@@ -22,9 +30,9 @@ jobs:
         with:
           toolchain: nightly
       - name: Cargo cache
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
-          key: v1-${{ runner.os }}-cargo-${{ steps.install-stable.outputs.rustc_hash }}-${{ steps.install-nightly.outputs.rustc_hash }}-${{ hashFiles('**/Cargo.lock') }}
+          key: v1-${{ runner.os }}-cargo-${{ steps.install-stable.outputs.rustc_hash }}-${{ steps.install-nightly.outputs.rustc_hash }}-${{ hashFiles('**/Cargo.lock') }}-${{ github.ref }}
           path: |
             ~/.cargo/bin/
             ~/.cargo/registry/index/
@@ -36,6 +44,7 @@ jobs:
             target/.rustc_info.json
             target/CACHEDIR.TAG
           restore-keys: |
+            v1-${{ runner.os }}-cargo-${{ steps.install-stable.outputs.rustc_hash }}-${{ steps.install-nightly.outputs.rustc_hash }}-${{ hashFiles('**/Cargo.lock') }}-refs/heads/master
             v1-${{ runner.os }}-cargo-${{ steps.install-stable.outputs.rustc_hash }}-${{ steps.install-nightly.outputs.rustc_hash }}-
             v1-${{ runner.os }}-cargo-${{ steps.install-stable.outputs.rustc_hash }}-
       - name: Install CLI deps
@@ -46,5 +55,7 @@ jobs:
         run: rustup run nightly wasm-pack test --headless --firefox --chrome --locked --no-default-features --features nightly
       - name: Test (nightly, all features)
         run: rustup run nightly wasm-pack test --headless --firefox --chrome --locked --features default,nightly
+      - name: Test doc generation
+        run: cargo doc --no-deps
       - name: List package contents
         run: cargo package --list --locked --target wasm32-unknown-unknown

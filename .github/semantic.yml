@@ -1,0 +1,19 @@
+# https://github.com/Ezard/semantic-prs
+
+enabled: true
+commitsOnly: true
+types:
+  - feat # A new feature
+  - fix # A fix
+  - docs # Documentation changes
+  - refactor # Refactoring
+  - style # Code style changes
+  - perf # Performance improvements
+  - build # Build system changes
+  - ci # Stuff only affecting Github Actions
+  - chore # General maintenance work
+  - revert # Reverting some previous commit. The message should be `revert: OriginalMessage CommitSha`
+  - ux # User experience improvements
+scopes:
+  - deps
+  - deps-dev

@@ -22,7 +22,7 @@ pub(crate) struct IdbRequestFuture {
     request: Rc<IdbRequestRef>,
     result: ResultRef,
     waker: WakerRef,
-    on_success: Option<Cb>,
+    _on_success: Option<Cb>,
     on_error: Option<Cb>,
 }
 
@@ -71,7 +71,7 @@ impl IdbRequestFuture {
             request,
             result,
             waker,
-            on_success,
+            _on_success: on_success,
             on_error,
         }
     }
