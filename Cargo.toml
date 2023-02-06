@@ -42,7 +42,7 @@ wasm-bindgen-test = "0.3.33"
 cfg-if = "1.0.0"
 js-sys = "0.3.60"
 uuid = {version = "1.2.2", features = ["v4", "wasm-bindgen", "js"]}
-wasm-bindgen = "0.2.83"
+wasm-bindgen = "0.2.84"
 wasm-bindgen-futures = "0.4.33"
 
 [dependencies.web-sys]
