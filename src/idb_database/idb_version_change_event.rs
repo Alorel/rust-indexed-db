@@ -1,17 +1,19 @@
-use wasm_bindgen::{prelude::*, JsCast};
-use web_sys::IdbOpenDbRequest;
+use wasm_bindgen::{JsCast, prelude::*};
+use web_sys::{IdbOpenDbRequest, IdbRequest};
 
 use crate::idb_database::IdbDatabase;
+use crate::prelude::IdbTransaction;
 
 /// The DB version has changed
 #[derive(Debug)]
 pub struct IdbVersionChangeEvent {
     event: web_sys::IdbVersionChangeEvent,
     db: IdbDatabase,
+    transaction: web_sys::IdbTransaction,
 }
 
 pub(crate) type IdbVersionChangeCallback =
-    Closure<dyn FnMut(web_sys::IdbVersionChangeEvent) -> Result<(), JsValue> + 'static>;
+Closure<dyn FnMut(web_sys::IdbVersionChangeEvent) -> Result<(), JsValue> + 'static>;
 
 impl IdbVersionChangeEvent {
     pub(crate) fn new(event: web_sys::IdbVersionChangeEvent) -> Self {
@@ -27,12 +29,15 @@ impl IdbVersionChangeEvent {
         Self {
             event,
             db: IdbDatabase::new(base_db),
+            transaction: req.unchecked_into::<IdbRequest>()
+                .transaction()
+                .expect("Failed to unwrap IdbOpenDbRequest transaction"),
         }
     }
 
     pub(crate) fn wrap_callback<F>(cb: F) -> IdbVersionChangeCallback
-    where
-        F: Fn(&Self) -> Result<(), JsValue> + 'static,
+        where
+            F: Fn(&Self) -> Result<(), JsValue> + 'static,
     {
         let b = Box::new(move |event: web_sys::IdbVersionChangeEvent| cb(&Self::new(event)));
         Closure::wrap(b)
@@ -55,6 +60,11 @@ impl IdbVersionChangeEvent {
     #[inline]
     pub fn db(&self) -> &IdbDatabase {
         &self.db
+    }
+
+    #[inline]
+    pub fn transaction(&self) -> IdbTransaction {
+        IdbTransaction::new(self.transaction.clone(), &self.db)
     }
 }
 
