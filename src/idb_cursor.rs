@@ -1,7 +1,5 @@
 //! Cursor-related code
 //!
-//! Features required: `cursors`
-//!
 //! ## Examples
 //!
 // use super::{*, prelude::*};
@@ -36,6 +34,8 @@
 //         Ok(())
 //     }
 
+use accessory::Accessors;
+use fancy_constructor::new;
 use std::future::Future;
 use std::rc::Rc;
 
@@ -52,41 +52,34 @@ use crate::request::{
 
 mod idb_cursor_with_value;
 
-/// An interface for an IndexedDB cursor
-///
-/// Features required: `cursors`
-#[derive(Debug)]
+/// An interface for an [`IndexedDB` cursor](web_sys::IdbCursor)
+#[derive(Debug, new, Accessors)]
+#[new(vis(pub(crate)))]
 pub struct IdbCursor<'a, T: IdbQuerySource> {
     inner: web_sys::IdbCursor,
+
+    #[access(get(cp))]
+    /// What spawned this cursor
     source: &'a T,
     req: Rc<IdbRequestRef>,
 }
 
 impl<'a, T: IdbQuerySource> IdbCursor<'a, T> {
     #[inline]
-    pub(crate) fn new(inner: web_sys::IdbCursor, source: &'a T, req: Rc<IdbRequestRef>) -> Self {
-        Self { inner, source, req }
-    }
-
-    #[inline]
     pub(crate) fn inner_as_cursor_with_value(&self) -> &web_sys::IdbCursorWithValue {
         self.inner.unchecked_ref()
     }
 
-    /// Get what spawned this cursor
-    #[inline]
-    pub fn source(&self) -> &'a T {
-        &self.source
-    }
-
     /// Get the cursor direction
     #[inline]
+    #[must_use]
     pub fn direction(&self) -> IdbCursorDirection {
         self.inner.direction()
     }
 
     /// Get the key at the cursor's current position. Returns `None` if the cursor is outside its
     /// range.
+    #[must_use]
     pub fn key(&self) -> Option<JsValue> {
         optional_jsvalue_undefined(self.inner.key().unwrap())
     }
@@ -94,6 +87,7 @@ impl<'a, T: IdbQuerySource> IdbCursor<'a, T> {
     /// Get the cursor's current effective primary key. Returns `None` if the cursor is currently
     /// being iterated or has iterated outside its range.
     #[inline]
+    #[must_use]
     pub fn primary_key(&self) -> Option<JsValue> {
         optional_jsvalue_undefined(self.inner.primary_key().unwrap())
     }
@@ -142,7 +136,7 @@ impl<'a, T: IdbQuerySource> IdbCursor<'a, T> {
         Ok(self.continue_common())
     }
 
-    /// Internal [IdbCursor::into_vec] handler
+    /// Internal [`IdbCursor::into_vec`] handler
     async fn handle_into_vec<F, O>(&self, skip: u32, mapper: F) -> Result<Vec<O>, DomException>
     where
         F: Fn(JsValue) -> O,
@@ -152,11 +146,7 @@ impl<'a, T: IdbQuerySource> IdbCursor<'a, T> {
         }
 
         let mut out = match self.key() {
-            Some(v) => {
-                let mut out = Vec::with_capacity(1);
-                out.push(mapper(v));
-                out
-            }
+            Some(v) => vec![mapper(v)],
             None => {
                 return Ok(Vec::new());
             }
@@ -205,7 +195,8 @@ impl<'a, T: IdbQuerySource> IdbCursor<'a, T> {
 }
 
 #[cfg(test)]
-pub mod test {
+#[allow(clippy::cast_possible_truncation, clippy::needless_pass_by_value)]
+pub mod idb_cursor_test {
     use wasm_bindgen::prelude::*;
     use web_sys::DomException;
 
@@ -215,11 +206,6 @@ pub mod test {
     test_mod_init!();
 
     async fn insert_dummy_data(db: &IdbDatabase, store_name: &str) {
-        let tx = db
-            .transaction_on_one_with_mode(store_name, IdbTransactionMode::Readwrite)
-            .expect("Start insert tx open");
-        let store = tx.object_store(store_name).expect("Start insert store");
-
         fn add_values(store: &IdbObjectStore) -> Result<(), DomException> {
             store.add_key_val_owned("k1", &JsValue::from(1u8))?;
             store.add_key_val_owned("k2", &JsValue::from(2u8))?;
@@ -227,6 +213,11 @@ pub mod test {
             store.add_key_val_owned("k4", &JsValue::from(4u8))?;
             Ok(())
         }
+
+        let tx = db
+            .transaction_on_one_with_mode(store_name, IdbTransactionMode::Readwrite)
+            .expect("Start insert tx open");
+        let store = tx.object_store(store_name).expect("Start insert store");
 
         add_values(&store).expect("Start insert add_values");
         tx.await.into_result().expect("Start insert tx await");
@@ -239,9 +230,10 @@ pub mod test {
     }
 
     fn map_key(k: Option<JsValue>) -> Option<String> {
-        Some(k?.as_string()?)
+        k?.as_string()
     }
 
+    #[allow(clippy::cast_sign_loss)]
     fn map_value(v: JsValue) -> u8 {
         v.as_f64().expect("failed to unwrap value as f64") as u8
     }
@@ -279,20 +271,20 @@ pub mod test {
     });
 
     test_case!(async delete_and_update => {
+        async fn process<'a>(cur: &'a IdbCursorWithValue<'a, IdbObjectStore<'a>>) {
+            let key = map_key(cur.key()).expect("unwrap_key");
+            if key.as_str() == "k3" {
+                cur.delete().expect("delete").await.expect("delete await");
+            } else if key.as_str() == "k4" {
+                cur.update(&JsValue::from(100u8)).expect("update").await.expect("update await");
+            }
+        }
+
         let (db, store_name) = open_dummy_db().await;
         let tx = db.transaction_on_one_with_mode(&store_name, IdbTransactionMode::Readwrite)
             .unwrap();
         let store = tx.object_store(&store_name).unwrap();
         let cur = open_cur(&store).await;
-
-        async fn process<'a>(cur: &'a IdbCursorWithValue<'a, IdbObjectStore<'a>>) {
-            let key = map_key(cur.key()).expect("unwrap_key");
-            if key.as_str() == "k3" {
-                cur.delete().expect("delete").into_future().await.expect("delete await");
-            } else if key.as_str() == "k4" {
-                cur.update(&JsValue::from(100u8)).expect("update").await.expect("update await");
-            }
-        }
 
         process(&cur).await;
         while do_continue_cursor(&cur).await {
@@ -304,7 +296,7 @@ pub mod test {
         let tx = db.transaction_on_one(&store_name).unwrap();
         let store = tx.object_store(&store_name).unwrap();
         let mut cur = open_cur(&store).await.into_vec(1).await.unwrap();
-        cur.sort_by(|a, b| a.key().as_string().cmp(&b.key().as_string()));
+        cur.sort_by_key(|a| a.key().as_string());
 
         let expected = vec![
             KeyVal::new("k2".into(), JsValue::from(2u8)),

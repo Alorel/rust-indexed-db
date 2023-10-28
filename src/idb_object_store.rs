@@ -1,30 +1,38 @@
 //! Object store-related code
 
+use accessory::Accessors;
 use wasm_bindgen::{prelude::*, JsCast};
 use web_sys::DomException;
 
 pub use idb_object_store_parameters::*;
+
 #[cfg(feature = "indices")]
 use {
     crate::{idb_index::IdbIndex, idb_key_path::IdbKeyPath},
     web_sys::IdbIndexParameters,
 };
 
-use crate::dom_string_iterator::DomStringIterator;
 use crate::idb_database::IdbDatabase;
 use crate::idb_transaction::IdbTransaction;
 use crate::request::VoidRequest;
 
 mod idb_object_store_parameters;
 
-#[derive(Debug)]
+/// An object store on a database
+#[derive(Debug, Accessors)]
 pub struct IdbObjectStore<'a> {
     inner: web_sys::IdbObjectStore,
+
+    /// The DB that spawned this store
+    #[access(get(cp))]
     db: &'a IdbDatabase,
-    tx: Option<&'a IdbTransaction<'a>>,
+
+    /// The transaction that spawned this store
+    #[access(get(cp))]
+    transaction: Option<&'a IdbTransaction<'a>>,
 }
 
-impl IdbObjectStore<'_> {
+impl<'a> IdbObjectStore<'a> {
     /// Clear all the documents in the object store
     pub fn clear(&self) -> Result<VoidRequest, DomException> {
         Ok(VoidRequest::new(self.inner.clear()?))
@@ -102,78 +110,17 @@ impl IdbObjectStore<'_> {
 
     /// The value of the auto increment flag for this object store.
     #[inline]
+    #[must_use]
     pub fn auto_increment(&self) -> bool {
         self.inner.auto_increment()
     }
 
-    // Indices
-    cfg_if::cfg_if! {
-        if #[cfg(feature = "indices")] {
-
-            /// Open a named index in the current object store
-            ///
-            /// Features required: `indices`
-            #[inline]
-            pub fn index(&self, name: &str) -> Result<IdbIndex, DomException> {
-                Ok(IdbIndex::new(self.inner.index(name)?, self))
-            }
-
-            /// Destroy a named index in the current object store. Only usable within a version
-            /// change transaction.
-            ///
-            /// Features required: `indices`
-            #[inline]
-            pub fn delete_index(&self, name: &str) -> Result<(), DomException> {
-                Ok(self.inner.delete_index(name)?)
-            }
-
-            /// A list of the names of indices on objects in this object store.
-            ///
-            /// Features required: `indices`
-            #[inline]
-            pub fn index_names(&self) -> impl Iterator<Item = String> {
-                DomStringIterator::from(self.inner.index_names())
-            }
-
-            /// Create an index at the given key path
-            ///
-            /// Features required: `indices`
-            pub fn create_index(&self, name: &str, key_path: &IdbKeyPath) -> Result<IdbIndex, DomException> {
-                let base = self.inner.create_index_with_str_sequence(name, key_path.as_js_value());
-                self.create_idx_common(base)
-            }
-
-            /// Create an index at the given key path with the given parameters
-            ///
-            /// Features required: `indices`
-            pub fn create_index_with_params(
-                &self,
-                name: &str,
-                key_path: &IdbKeyPath,
-                params: &IdbIndexParameters
-            ) -> Result<IdbIndex, DomException> {
-                let base = self.inner
-                  .create_index_with_str_sequence_and_optional_parameters(name, key_path.as_js_value(), params);
-                self.create_idx_common(base)
-            }
-
-            fn create_idx_common(
-                &self,
-                src: Result<web_sys::IdbIndex, JsValue>,
-            ) -> Result<IdbIndex, DomException> {
-                Ok(IdbIndex::new(src?, &self))
-            }
-        }
-    }
-}
-
-impl<'a> IdbObjectStore<'a> {
     #[inline]
     pub(crate) fn from_db(inner: web_sys::IdbObjectStore, db: &'a IdbDatabase) -> Self {
         Self {
             inner,
             db,
-            tx: None,
+            transaction: None,
         }
     }
 
@@ -182,20 +129,8 @@ impl<'a> IdbObjectStore<'a> {
         Self {
             inner,
             db: tx.db(),
-            tx: Some(tx),
+            transaction: Some(tx),
         }
-    }
-
-    /// The DB that spawned this store
-    #[inline]
-    pub fn db(&self) -> &'a IdbDatabase {
-        &self.db
-    }
-
-    /// The transaction that spawned this store
-    #[inline]
-    pub fn transaction(&self) -> &Option<&'a IdbTransaction<'a>> {
-        &self.tx
     }
 
     /// Delete the record at the with the given key
@@ -207,6 +142,64 @@ impl<'a> IdbObjectStore<'a> {
     #[inline]
     pub fn delete_owned<K: Into<JsValue>>(&self, key: K) -> Result<VoidRequest, DomException> {
         self.delete(&key.into())
+    }
+}
+
+#[cfg(feature = "indices")]
+impl<'a> IdbObjectStore<'a> {
+    /// Open a named index in the current object store
+    #[inline]
+    pub fn index(&self, name: &str) -> Result<IdbIndex, DomException> {
+        Ok(IdbIndex::new(self.inner.index(name)?, self))
+    }
+
+    /// Destroy a named index in the current object store. Only usable within a version
+    /// change transaction.
+    #[inline]
+    pub fn delete_index(&self, name: &str) -> Result<(), DomException> {
+        Ok(self.inner.delete_index(name)?)
+    }
+
+    /// A list of the names of indices on objects in this object store.
+    #[inline]
+    pub fn index_names(&self) -> impl Iterator<Item = String> + ExactSizeIterator {
+        crate::dom_string_iterator::DomStringIterator::from(self.inner.index_names())
+    }
+
+    /// Create an index at the given key path
+    pub fn create_index(
+        &self,
+        name: &str,
+        key_path: &IdbKeyPath,
+    ) -> Result<IdbIndex, DomException> {
+        let base = self
+            .inner
+            .create_index_with_str_sequence(name, key_path.as_js_value());
+        self.create_idx_common(base)
+    }
+
+    /// Create an index at the given key path with the given parameters
+    pub fn create_index_with_params(
+        &self,
+        name: &str,
+        key_path: &IdbKeyPath,
+        params: &IdbIndexParameters,
+    ) -> Result<IdbIndex, DomException> {
+        let base = self
+            .inner
+            .create_index_with_str_sequence_and_optional_parameters(
+                name,
+                key_path.as_js_value(),
+                params,
+            );
+        self.create_idx_common(base)
+    }
+
+    fn create_idx_common(
+        &self,
+        src: Result<web_sys::IdbIndex, JsValue>,
+    ) -> Result<IdbIndex, DomException> {
+        Ok(IdbIndex::new(src?, self))
     }
 }
 
@@ -258,7 +251,7 @@ pub mod test {
 
         let tx = db.transaction_on_one_with_mode(&store_name, TxMode::Readwrite).expect("tx2 open");
         let store = tx.object_store(&store_name).expect("store2 open");
-        store.clear().expect("clear").into_future().await.expect("clear await");
+        store.clear().expect("clear").await.expect("clear await");
 
         let tx = db.transaction_on_one(&store_name).expect("tx3 open");
         let store = tx.object_store(&store_name).expect("store 3 open");
@@ -298,7 +291,7 @@ pub mod test {
                     Ok(())
                 }));
             }
-            let db = req.into_future().await.expect("db await");
+            let db = req.await.expect("db await");
             let tx = db.transaction_on_one(&store_name).expect("tx");
             let store = tx.object_store(&store_name).expect("store");
             let idx = store.index("created_idx").expect("get idx");
@@ -320,7 +313,7 @@ pub mod test {
                   Ok(())
                 }));
             }
-            let db = req.into_future().await.expect("db await");
+            let db = req.await.expect("db await");
             let tx = db.transaction_on_one(&store_name).expect("tx");
             let store = tx.object_store(&store_name).expect("store");
             let mut idx_names: Vec<String> = store.index_names().collect();

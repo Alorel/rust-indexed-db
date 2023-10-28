@@ -1,30 +1,29 @@
 use crate::idb_key_path::IdbKeyPath;
+use delegate_display::DelegateDebug;
+use fancy_constructor::new;
+use web_sys::IdbObjectStoreParameters as Base;
 
-/// Wrapper for [IdbObjectStore][crate::idb_object_store::IdbObjectStore] optional parameters
-#[derive(Debug, Clone)]
-pub struct IdbObjectStoreParameters(web_sys::IdbObjectStoreParameters);
+/// Wrapper for [`IdbObjectStore`](crate::idb_object_store::IdbObjectStore) optional parameters
+#[derive(DelegateDebug, Clone, new)]
+pub struct IdbObjectStoreParameters(#[new(val(Base::new()))] Base);
 
 impl IdbObjectStoreParameters {
-    #[inline]
-    pub fn new() -> Self {
-        Self::from(web_sys::IdbObjectStoreParameters::new())
-    }
-
-    /// Set the auto_increment option
+    /// Set the `auto_increment` option
     #[inline]
     pub fn auto_increment(&mut self, val: bool) -> &mut Self {
         self.0.auto_increment(val);
         self
     }
 
-    /// Set the key_path option
+    /// Set the `key_path` option
     pub fn key_path(&mut self, val: Option<&IdbKeyPath>) -> &mut Self {
-        self.0.key_path(val.map(|v| v.as_js_value()));
+        self.0.key_path(val.map(IdbKeyPath::as_js_value));
         self
     }
 
-    /// Get the enclosed web_sys parameters object
+    /// Get the enclosed `web_sys` parameters object
     #[inline]
+    #[must_use]
     pub fn as_js_value(&self) -> &web_sys::IdbObjectStoreParameters {
         self.0.as_ref()
     }

@@ -1,6 +1,6 @@
 use web_sys::DomStringList;
 
-/// An [Iterator] for a [DomStringList]
+/// An [Iterator] for a [`DomStringList`]
 pub(crate) struct DomStringIterator {
     inner: DomStringList,
     idx: u32,
@@ -18,9 +18,14 @@ impl DomStringIterator {
     fn len(&self) -> u32 {
         self.inner.length()
     }
+
+    #[inline]
+    fn size_hint_base(&self) -> usize {
+        (self.len() - self.idx) as usize
+    }
 }
 
-impl<'a> Iterator for DomStringIterator {
+impl Iterator for DomStringIterator {
     type Item = String;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -33,7 +38,14 @@ impl<'a> Iterator for DomStringIterator {
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
-        let out = (self.len() - self.idx) as usize;
+        let out = self.size_hint_base();
         (out, Some(out))
+    }
+}
+
+impl ExactSizeIterator for DomStringIterator {
+    #[inline]
+    fn len(&self) -> usize {
+        self.size_hint_base()
     }
 }

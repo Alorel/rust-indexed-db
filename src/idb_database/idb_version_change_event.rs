@@ -1,19 +1,24 @@
-use wasm_bindgen::{JsCast, prelude::*};
+use accessory::Accessors;
+use wasm_bindgen::{prelude::*, JsCast};
 use web_sys::{IdbOpenDbRequest, IdbRequest};
 
 use crate::idb_database::IdbDatabase;
 use crate::prelude::IdbTransaction;
 
 /// The DB version has changed
-#[derive(Debug)]
+#[derive(Debug, Accessors)]
 pub struct IdbVersionChangeEvent {
     event: web_sys::IdbVersionChangeEvent,
+
+    /// Database associated with the version change
+    #[access(get)]
     db: IdbDatabase,
-    transaction: web_sys::IdbTransaction,
+
+    req: IdbOpenDbRequest,
 }
 
 pub(crate) type IdbVersionChangeCallback =
-Closure<dyn FnMut(web_sys::IdbVersionChangeEvent) -> Result<(), JsValue> + 'static>;
+    Closure<dyn FnMut(web_sys::IdbVersionChangeEvent) -> Result<(), JsValue> + 'static>;
 
 impl IdbVersionChangeEvent {
     pub(crate) fn new(event: web_sys::IdbVersionChangeEvent) -> Self {
@@ -29,15 +34,13 @@ impl IdbVersionChangeEvent {
         Self {
             event,
             db: IdbDatabase::new(base_db),
-            transaction: req.unchecked_into::<IdbRequest>()
-                .transaction()
-                .expect("Failed to unwrap IdbOpenDbRequest transaction"),
+            req,
         }
     }
 
     pub(crate) fn wrap_callback<F>(cb: F) -> IdbVersionChangeCallback
-        where
-            F: Fn(&Self) -> Result<(), JsValue> + 'static,
+    where
+        F: Fn(&Self) -> Result<(), JsValue> + 'static,
     {
         let b = Box::new(move |event: web_sys::IdbVersionChangeEvent| cb(&Self::new(event)));
         Closure::wrap(b)
@@ -45,26 +48,31 @@ impl IdbVersionChangeEvent {
 
     /// Old DB version; set to 0 on new DBs
     #[inline]
+    #[must_use]
     pub fn old_version(&self) -> f64 {
         self.event.old_version()
     }
 
     /// New DB version
     #[inline]
+    #[must_use]
     pub fn new_version(&self) -> f64 {
         self.event
             .new_version()
             .expect("Unable to unwrap new version")
     }
 
+    /// Transaction associated with the version change
     #[inline]
-    pub fn db(&self) -> &IdbDatabase {
-        &self.db
-    }
-
-    #[inline]
+    #[must_use]
     pub fn transaction(&self) -> IdbTransaction {
-        IdbTransaction::new(self.transaction.clone(), &self.db)
+        let inner = self
+            .req
+            .unchecked_ref::<IdbRequest>()
+            .transaction()
+            .expect("Failed to unwrap IdbOpenDbRequest transaction");
+
+        IdbTransaction::new(inner, &self.db)
     }
 }
 

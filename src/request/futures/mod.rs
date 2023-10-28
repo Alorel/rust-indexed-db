@@ -7,15 +7,19 @@ pub use count_future::*;
 pub(crate) use idb_open_db_request_future::*;
 pub(crate) use idb_request_future::*;
 pub use jscast_request_future::*;
+pub(crate) use map::{MapFuture, TMapFuture};
 pub use optional_jsval_future::*;
+pub use void_future::VoidFuture;
 
-macro_rules! impl_result_formatting_struct_constructor {
-    () => {
-        pub(crate) fn new(
-            req: Result<web_sys::IdbRequest, wasm_bindgen::JsValue>,
-        ) -> Result<Self, DomException> {
-            let base = $crate::request::IdbRequestRef::new(req?).into_future(true);
-            Ok(Self(base))
+macro_rules! impl_result_formatting_struct_commons {
+    ($ty: ident) => {
+        impl $ty {
+            pub(crate) fn new(
+                req: Result<web_sys::IdbRequest, wasm_bindgen::JsValue>,
+            ) -> Result<Self, web_sys::DomException> {
+                let base = $crate::request::IdbRequestRef::new(req?);
+                Ok(Self(::std::future::IntoFuture::into_future(base)))
+            }
         }
     };
 }
@@ -40,22 +44,15 @@ mod count_future;
 mod idb_open_db_request_future;
 mod idb_request_future;
 mod jscast_request_future;
+mod map;
 mod optional_jsval_future;
+mod void_future;
 
-cfg_if::cfg_if! {
-    if #[cfg(feature = "cursors")] {
-        mod idb_cursor_future;
-        mod idb_cursor_with_value_future;
-        mod idb_cursor_advancement_future;
+#[cfg(feature = "cursors")]
+mod cursor;
 
-        pub(crate) use idb_cursor_advancement_future::*;
-
-        pub use {
-            idb_cursor_future::*,
-            idb_cursor_with_value_future::*
-        };
-    }
-}
+#[cfg(feature = "cursors")]
+pub use cursor::*;
 
 trait ResponseFormattingFuture<T> {
     /// Format the raw response into what the implementing struct expects

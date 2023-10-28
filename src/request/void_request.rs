@@ -4,4 +4,9 @@ use super::IdbRequestRef;
 #[derive(Debug)]
 pub struct VoidRequest(IdbRequestRef);
 
-impl_void_request!(VoidRequest, web_sys::IdbRequest, IdbRequestRef);
+impl_void_request!(
+    for VoidRequest,
+    raw web_sys::IdbRequest,
+    ref IdbRequestRef,
+    fut super::futures::IdbRequestFuture
+);

@@ -1,3 +1,6 @@
+use accessory::Accessors;
+use delegate_display::DelegateDebug;
+use fancy_constructor::new;
 use std::ops::Deref;
 
 use wasm_bindgen::prelude::*;
@@ -7,39 +10,25 @@ use crate::idb_query_source::IdbQuerySource;
 
 use super::IdbCursor;
 
-/// A key value pair returned by [IdbCursorWithValue::into_vec]
-#[derive(Clone, Debug, PartialEq)]
-pub struct KeyVal(JsValue, JsValue);
+/// A key value pair returned by [`IdbCursorWithValue::into_vec`]
+#[derive(Clone, Debug, PartialEq, new, Accessors)]
+#[access(get)]
+#[new(vis(pub(crate)))]
+pub struct KeyVal {
+    /// The key
+    key: JsValue,
 
-impl KeyVal {
-    #[inline]
-    pub(crate) fn new(key: JsValue, value: JsValue) -> Self {
-        Self(key, value)
-    }
-
-    #[inline]
-    pub fn key(&self) -> &JsValue {
-        &self.0
-    }
-
-    #[inline]
-    pub fn value(&self) -> &JsValue {
-        &self.1
-    }
+    /// The value
+    value: JsValue,
 }
 
-/// Like [IdbCursor], but iterates values as well as keys
-///
-/// Features required: `cursors`
-#[derive(Debug)]
+/// Like [`IdbCursor`], but iterates values as well as keys
+#[derive(DelegateDebug, new)]
+#[ddebug(bounds(T: std::fmt::Debug))]
+#[new(vis(pub(crate)))]
 pub struct IdbCursorWithValue<'a, T: IdbQuerySource>(IdbCursor<'a, T>);
 
 impl<'a, T: IdbQuerySource> IdbCursorWithValue<'a, T> {
-    #[inline]
-    pub(crate) fn new(inner: IdbCursor<'a, T>) -> Self {
-        Self(inner)
-    }
-
     /// Consume the remainder of the cursor, collecting each key-value pair into a vector.
     ///
     /// ### Arguments
@@ -53,6 +42,7 @@ impl<'a, T: IdbQuerySource> IdbCursorWithValue<'a, T> {
     }
 
     /// Get the cursor's current value
+    #[must_use]
     pub fn value(&self) -> JsValue {
         self.inner_as_cursor_with_value().value().unwrap()
     }

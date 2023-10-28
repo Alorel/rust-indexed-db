@@ -1,24 +1,20 @@
+use std::future::{Future, IntoFuture};
 use std::rc::Rc;
 
+use accessory::Accessors;
+use fancy_constructor::new;
 use wasm_bindgen::{prelude::*, JsCast};
 use web_sys::DomException;
 
 use super::IdbRequestFuture;
 
-#[derive(Debug)]
-pub(crate) struct IdbRequestRef(web_sys::IdbRequest);
+#[derive(Debug, new, Accessors)]
+pub(crate) struct IdbRequestRef {
+    #[access(get)]
+    inner: web_sys::IdbRequest,
+}
 
 impl IdbRequestRef {
-    #[inline]
-    pub fn new(inner: web_sys::IdbRequest) -> Self {
-        Self(inner)
-    }
-
-    #[inline]
-    pub fn inner(&self) -> &web_sys::IdbRequest {
-        &self.0
-    }
-
     #[inline]
     pub fn inner_as_idb_request(&self) -> &web_sys::IdbOpenDbRequest {
         self.inner().unchecked_ref()
@@ -47,7 +43,17 @@ impl IdbRequestRef {
     }
 
     #[inline]
-    pub fn into_future(self, read_response: bool) -> IdbRequestFuture {
+    pub(crate) fn into_future(self, read_response: bool) -> IdbRequestFuture {
         Self::rc_to_future(Rc::new(self), read_response)
+    }
+}
+
+impl IntoFuture for IdbRequestRef {
+    type Output = <IdbRequestFuture as Future>::Output;
+    type IntoFuture = IdbRequestFuture;
+
+    #[inline]
+    fn into_future(self) -> Self::IntoFuture {
+        Self::rc_to_future(Rc::new(self), true)
     }
 }

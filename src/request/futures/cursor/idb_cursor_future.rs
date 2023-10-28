@@ -6,15 +6,13 @@ use std::task::{Context, Poll};
 use wasm_bindgen::{prelude::*, JsCast};
 use web_sys::DomException;
 
+use super::super::IdbRequestFuture;
 use crate::idb_cursor::IdbCursor;
 use crate::idb_query_source::IdbQuerySource;
-use crate::internal_utils::safe_unwrap_option;
+use crate::internal_utils::NightlyUnwrap;
+use crate::request::IdbRequestRef;
 
-use super::{super::IdbRequestRef, IdbRequestFuture};
-
-/// A [Future][std::future::Future] that resolves to an [IdbCursor]
-///
-/// Features required: `cursors`
+/// A [`Future`] that resolves to an [`IdbCursor`]
 #[derive(Debug)]
 pub struct IdbCursorFuture<'a, T: IdbQuerySource> {
     inner: IdbRequestFuture,
@@ -27,7 +25,8 @@ impl<'a, T: IdbQuerySource> IdbCursorFuture<'a, T> {
         req: Result<web_sys::IdbRequest, JsValue>,
         source: &'a T,
     ) -> Result<Self, DomException> {
-        let inner = IdbRequestFuture::new(IdbRequestRef::new(req?), true);
+        let request = Rc::new(IdbRequestRef::new(req?));
+        let inner = IdbRequestFuture::new_with_rc(request, true);
         let req = inner.strong_request();
 
         Ok(Self { inner, source, req })
@@ -45,7 +44,7 @@ impl<'a, T: IdbQuerySource> IdbCursorFuture<'a, T> {
         &self,
         res: Result<Option<JsValue>, DomException>,
     ) -> Result<Option<IdbCursor<'a, T>>, DomException> {
-        let raw = safe_unwrap_option(res?);
+        let raw = res?.nightly_unwrap();
         let opt = if raw.is_null() {
             None
         } else {

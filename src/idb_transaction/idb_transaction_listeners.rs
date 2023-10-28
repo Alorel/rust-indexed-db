@@ -1,11 +1,5 @@
 use std::cell::RefMut;
-use std::ops::Deref;
-use std::task::Poll;
-use std::{
-    cell::RefCell,
-    rc::Rc,
-    task::{Context, Waker},
-};
+use std::{cell::RefCell, rc::Rc, task::Waker};
 
 use wasm_bindgen::{prelude::*, JsCast};
 
@@ -18,11 +12,11 @@ type ErrCb = dyn Fn(web_sys::Event) + 'static;
 type WakerRef = Rc<RefCell<Option<Waker>>>;
 type ResultRef = Rc<RefCell<Option<IdbTransactionResult>>>;
 
-/// IdbTransaction event listeners
+/// `IdbTransaction` event listeners
 #[derive(Debug)]
 pub(crate) struct IdbTransactionListeners {
-    waker: WakerRef,
-    result: ResultRef,
+    pub(crate) waker: WakerRef,
+    pub(crate) result: ResultRef,
     _on_success: Closure<Cb>,
     _on_abort: Closure<Cb>,
     _on_error: Closure<ErrCb>,
@@ -50,15 +44,6 @@ impl IdbTransactionListeners {
             _on_abort: on_abort,
         }
     }
-
-    pub fn do_poll(&self, ctx: &Context<'_>) -> Poll<IdbTransactionResult> {
-        if let Some(v) = self.result.borrow().deref() {
-            Poll::Ready(v.clone())
-        } else {
-            self.waker.borrow_mut().replace(ctx.waker().clone());
-            Poll::Pending
-        }
-    }
 }
 
 fn try_get_result_ref(result: &ResultRef) -> Option<RefMut<Option<IdbTransactionResult>>> {
@@ -71,6 +56,7 @@ fn try_get_result_ref(result: &ResultRef) -> Option<RefMut<Option<IdbTransaction
 }
 
 fn error_callback(waker: WakerRef, result: ResultRef) -> Closure<ErrCb> {
+    #[allow(clippy::needless_pass_by_value)]
     fn extract_error(evt: web_sys::Event) -> Option<web_sys::DomException> {
         if let Some(tgt) = evt.target() {
             let req: web_sys::IdbRequest = tgt.unchecked_into();
@@ -102,7 +88,7 @@ fn error_callback(waker: WakerRef, result: ResultRef) -> Closure<ErrCb> {
 
 fn base_callback(waker: WakerRef, result: ResultRef, kind: IdbTransactionResult) -> Closure<Cb> {
     /// Returns true if the waker should be called
-    fn process(result: &ResultRef, kind: IdbTransactionResult) -> bool {
+    fn process(result: &ResultRef, kind: &IdbTransactionResult) -> bool {
         if let Some(mut v) = try_get_result_ref(result) {
             v.replace(kind.clone());
             true
@@ -112,7 +98,7 @@ fn base_callback(waker: WakerRef, result: ResultRef, kind: IdbTransactionResult)
     }
 
     let b = Box::new(move || {
-        if process(&result, kind.clone()) {
+        if process(&result, &kind) {
             // Clone so this can be Fn and not FnOnce
             wake(&waker);
         }

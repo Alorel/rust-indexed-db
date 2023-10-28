@@ -1,4 +1,4 @@
-use std::future::Future;
+use std::future::{Future, IntoFuture};
 use std::marker::PhantomData;
 use std::pin::Pin;
 use std::task::{Context, Poll};
@@ -7,11 +7,11 @@ use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
 use web_sys::DomException;
 
-use crate::internal_utils::safe_unwrap_option;
+use crate::internal_utils::NightlyUnwrap;
 
 use super::{super::IdbRequestRef, IdbRequestFuture, ResponseFormattingFuture};
 
-/// A [Future] that casts the IdbRequest response to the given type
+/// A [Future] that casts the `IdbRequest` response to the given type
 #[derive(Debug)]
 pub struct JsCastRequestFuture<T: JsCast> {
     inner: IdbRequestFuture,
@@ -21,8 +21,8 @@ pub struct JsCastRequestFuture<T: JsCast> {
 impl<T: JsCast> JsCastRequestFuture<T> {
     pub(crate) fn new(req: Result<web_sys::IdbRequest, JsValue>) -> Result<Self, DomException> {
         let out = Self {
-            inner: IdbRequestRef::new(req?).into_future(true),
-            _cast: PhantomData::default(),
+            inner: IntoFuture::into_future(IdbRequestRef::new(req?)),
+            _cast: PhantomData,
         };
         Ok(out)
     }
@@ -30,7 +30,7 @@ impl<T: JsCast> JsCastRequestFuture<T> {
 
 impl<T: JsCast> ResponseFormattingFuture<T> for JsCastRequestFuture<T> {
     fn format_response(v: Result<Option<JsValue>, DomException>) -> Result<T, DomException> {
-        Ok(safe_unwrap_option(v?).unchecked_into())
+        Ok(v?.nightly_unwrap().unchecked_into())
     }
 
     #[inline]
