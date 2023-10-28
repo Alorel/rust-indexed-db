@@ -1,3 +1,4 @@
+use fancy_constructor::new;
 use std::future::Future;
 use std::pin::Pin;
 use std::task::{Context, Poll};
@@ -7,18 +8,12 @@ use web_sys::DomException;
 
 use super::{super::OpenDbRequestListeners, IdbRequestFuture};
 
-/// Base IdbOpenDbRequest future implementation
-#[derive(Debug)]
-pub(crate) struct IdbOpenDbRequestFuture {
+/// Base `IdbOpenDbRequest` future implementation
+#[derive(Debug, new)]
+#[new(vis(pub(crate)))]
+pub struct IdbOpenDbRequestFuture {
     base: IdbRequestFuture,
     _listeners: OpenDbRequestListeners,
-}
-
-impl IdbOpenDbRequestFuture {
-    #[inline]
-    pub fn new(base: IdbRequestFuture, listeners: OpenDbRequestListeners) -> Self {
-        Self { base, _listeners: listeners }
-    }
 }
 
 impl Future for IdbOpenDbRequestFuture {

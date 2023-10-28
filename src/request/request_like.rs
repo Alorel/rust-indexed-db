@@ -11,7 +11,7 @@ pub(crate) trait IdbRequestLike {
     fn get_ready_state(&self) -> IdbRequestReadyState;
 }
 
-/// Common trait for IdbOpenDbRequests
+/// Common trait for `IdbOpenDbRequest`s
 pub trait IdbOpenDbRequestLike {
     /// Set the callback for the `upgradeneeded` event
     fn set_on_upgrade_needed<F>(&mut self, callback: Option<F>)

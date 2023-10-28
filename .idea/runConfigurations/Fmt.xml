@@ -1,11 +1,11 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="watch:dev" type="CargoCommandRunConfiguration" factoryName="Cargo Command">
-    <option name="command" value="make watch-dev" />
+  <configuration default="false" name="Fmt" type="CargoCommandRunConfiguration" factoryName="Cargo Command" singleton="false">
+    <option name="command" value="fmt --all" />
     <option name="workingDirectory" value="file://$PROJECT_DIR$" />
-    <option name="channel" value="DEFAULT" />
-    <option name="requiredFeatures" value="true" />
-    <option name="allFeatures" value="false" />
     <option name="emulateTerminal" value="true" />
+    <option name="channel" value="DEFAULT" />
+    <option name="requiredFeatures" value="false" />
+    <option name="allFeatures" value="false" />
     <option name="withSudo" value="false" />
     <option name="buildTarget" value="REMOTE" />
     <option name="backtrace" value="SHORT" />

@@ -1,6 +1,6 @@
 use web_sys::DomException;
 
-/// The [transaction's][crate::idb_transaction::IdbTransaction] result
+/// The [transaction's](crate::idb_transaction::IdbTransaction) result
 #[derive(Debug, Clone)]
 pub enum IdbTransactionResult {
     /// Transaction committed successfully
@@ -23,5 +23,12 @@ impl IdbTransactionResult {
                 Err(xc)
             }
         }
+    }
+}
+
+impl From<IdbTransactionResult> for Result<(), DomException> {
+    #[inline]
+    fn from(value: IdbTransactionResult) -> Self {
+        value.into_result()
     }
 }

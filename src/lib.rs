@@ -1,17 +1,21 @@
 //! Wraps the [web_sys](https://crates.io/crates/web_sys) Indexed DB API in a Future-based API and
 //! removes the pain of dealing with Javascript callbacks in Rust.
 //!
+//! [![master CI badge](https://img.shields.io/github/actions/workflow/status/Alorel/rust-indexed-db/ci.yml?label=master%20CI)](https://github.com/Alorel/rust-indexed-db/actions/workflows/ci.yml?query=branch%3Amaster)
+//! [![crates.io badge](https://img.shields.io/crates/v/indexed_db_futures)](https://crates.io/crates/indexed_db_futures)
+//! [![docs.rs badge](https://img.shields.io/docsrs/indexed_db_futures?label=docs.rs)](https://docs.rs/indexed_db_futures)
+//! [![dependencies badge](https://img.shields.io/librariesio/release/cargo/indexed_db_futures)](https://libraries.io/cargo/indexed_db_futures)
+//!
 //! ## Overall API design
 //!
-//! In most cases API methods will return a [Result] containing a wrapped
-//! [IdbRequest][web_sys::IdbRequest], such as [VoidRequest][crate::request::VoidRequest], which can
-//! then be turned into a future by calling `.into_future()` or, when
-//! more appropriate, the [Future][std::future::Future] directly, e.g.
-//! [CountFuture][crate::request::CountFuture].
+//! In most cases API methods will return a [`Result`](::std::result::Result) containing a wrapped
+//! [`IdbRequest`](crate::web_sys::IdbRequest) that implements [`IntoFuture`](::std::future::IntoFuture), such as
+//! [`VoidRequest`](crate::request::VoidRequest), or, when more appropriate, the [`Future`](::std::future::Future)
+//! directly, e.g. [`CountFuture`](crate::request::CountFuture).
 //!
 //! The key difference between a wrapped Request and Future is that Requests don't have _any_ event
 //! listeners attached, which aims to make quickfire operations such as inserting several records
-//! into an [IdbObjectStore][crate::idb_object_store::IdbObjectStore] a little bit more efficient.
+//! into an [`IdbObjectStore`](crate::idb_object_store::IdbObjectStore) a little bit more efficient.
 //!
 //! ## Features
 //!
@@ -20,7 +24,7 @@
 //!
 //! - `cursors` - Enable cursor support
 //! - `indices` - Enable index support
-//! - `nightly` - Use `unsafe` nightly features where appropriate, such as [unwrap_unchecked][Option::unwrap_unchecked].
+//! - `nightly` - Use unsafe nightly features where appropriate, such as [`unwrap_unchecked`](Option::unwrap_unchecked).
 //! - `default`:
 //!    - `cursors`
 //!    - `indices`
@@ -33,10 +37,11 @@
 //!
 //! ```rust
 //! use indexed_db_futures::prelude::*;
-// use web_sys::DomException;
-// use wasm_bindgen::prelude::*;
-//
-// fn use_value(_v: Option<JsValue>) {}
+//!# use web_sys::DomException;
+//!# use wasm_bindgen::prelude::*;
+//!#
+//!# fn use_value(_v: Option<JsValue>) {}
+//!# fn get_some_js_value() -> JsValue { JsValue::UNDEFINED }
 //!
 //! pub async fn example() -> Result<(), DomException> {
 //!     // Open my_db v1
@@ -49,7 +54,7 @@
 //!         Ok(())
 //!     }));
 //!
-//!     let db: IdbDatabase = db_req.into_future().await?;
+//!     let db: IdbDatabase = db_req.await?;
 //!
 //!     // Insert/overwrite a record
 //!     let tx: IdbTransaction = db
@@ -76,15 +81,22 @@
 //!     let value: Option<JsValue> = store.get_owned("my_key")?.await?;
 //!     use_value(value);
 //!
-//!     // All of the requests in the transaction have already finished so we can just drop it to
-//!     // avoid the unused future warning, or assign it to _.
-//!     let _ = tx;
-//!
 //!     Ok(())
 //! }
 //! ```
 
-use cfg_if::cfg_if;
+#![deny(clippy::correctness, clippy::suspicious)]
+#![warn(clippy::complexity, clippy::perf, clippy::style, clippy::pedantic)]
+#![warn(missing_docs)]
+#![allow(
+    clippy::missing_errors_doc,
+    clippy::missing_panics_doc,
+    clippy::module_name_repetitions,
+    clippy::uninlined_format_args
+)]
+#![allow(rustdoc::redundant_explicit_links)]
+#![cfg_attr(doc_cfg, feature(doc_auto_cfg))]
+
 pub use js_sys;
 pub use web_sys;
 
@@ -300,12 +312,11 @@ pub mod request;
 
 pub(crate) mod dom_string_iterator;
 
-cfg_if! {
-    if #[cfg(feature = "indices")] {
-        mod idb_index;
-        pub use idb_index::*;
-    }
-}
+#[cfg(feature = "indices")]
+mod idb_index;
+
+#[cfg(feature = "indices")]
+pub use idb_index::*;
 
 #[cfg(feature = "cursors")]
 pub mod idb_cursor;

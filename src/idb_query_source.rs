@@ -6,8 +6,8 @@ use crate::request::{CountFuture, JsCastRequestFuture, OptionalJsValueFuture};
 #[cfg(feature = "cursors")]
 use crate::request::{IdbCursorFuture, IdbCursorWithValueFuture};
 
-/// Code shared between [indices][crate::idb_index::IdbIndex] and
-/// [object stores][crate::idb_object_store::IdbObjectStore]
+/// Code shared between [indices](crate::idb_index::IdbIndex) and
+/// [object stores](crate::idb_object_store::IdbObjectStore)
 pub trait IdbQuerySource: Sized {
     /// Get the index/object store name
     fn name(&self) -> String;
@@ -19,11 +19,11 @@ pub trait IdbQuerySource: Sized {
     fn key_path(&self) -> Option<IdbKeyPath>;
 
     /// Find either the value in the referenced object store that corresponds to the given key or
-    /// the first corresponding value, if key is an [IDBKeyRange][web_sys::IdbKeyRange].
+    /// the first corresponding value, if key is an [`IDBKeyRange`](web_sys::IdbKeyRange).
     fn get<K: JsCast>(&self, key: &K) -> Result<OptionalJsValueFuture, DomException>;
 
     /// Find either the value in the referenced object store that corresponds to the given key or
-    /// the first corresponding value, if key is an [IDBKeyRange][web_sys::IdbKeyRange].
+    /// the first corresponding value, if key is an [`IDBKeyRange`](web_sys::IdbKeyRange).
     #[inline]
     fn get_owned<K: Into<JsValue>>(&self, key: K) -> Result<OptionalJsValueFuture, DomException> {
         self.get(&key.into())
@@ -33,14 +33,14 @@ pub trait IdbQuerySource: Sized {
     fn get_all(&self) -> Result<JsCastRequestFuture<js_sys::Array>, DomException>;
 
     /// Get all values in the index/object store that correspond to the given key or are in
-    /// range, if the key is an [IDBKeyRange][web_sys::IdbKeyRange].
+    /// range, if the key is an [`IDBKeyRange`](web_sys::IdbKeyRange).
     fn get_all_with_key<K: JsCast>(
         &self,
         key: &K,
     ) -> Result<JsCastRequestFuture<js_sys::Array>, DomException>;
 
     /// Get all values in the index/object store that correspond to the given key or are in
-    /// range, if the key is an [IDBKeyRange][web_sys::IdbKeyRange].
+    /// range, if the key is an [`IDBKeyRange`](web_sys::IdbKeyRange).
     #[inline]
     fn get_all_with_key_owned<K: Into<JsValue>>(
         &self,
@@ -62,11 +62,11 @@ pub trait IdbQuerySource: Sized {
     }
 
     /// Find either the given key or the primary key, if key is an
-    /// [IDBKeyRange][web_sys::IdbKeyRange].
+    /// [`IDBKeyRange`](web_sys::IdbKeyRange).
     fn get_key<K: JsCast>(&self, key: &K) -> Result<OptionalJsValueFuture, DomException>;
 
     /// Find either the given key or the primary key, if key is an
-    /// [IDBKeyRange][web_sys::IdbKeyRange].
+    /// [`IDBKeyRange`](web_sys::IdbKeyRange).
     #[inline]
     fn get_key_owned<K>(&self, key: K) -> Result<OptionalJsValueFuture, DomException>
     where
@@ -79,14 +79,14 @@ pub trait IdbQuerySource: Sized {
     fn get_all_keys(&self) -> Result<JsCastRequestFuture<js_sys::Array>, DomException>;
 
     /// Get all the keys in the index/object store that correspond to the given key or are in range
-    /// if the key is an [IDBKeyRange][web_sys::IdbKeyRange].
+    /// if the key is an [`IDBKeyRange`](web_sys::IdbKeyRange).
     fn get_all_keys_with_key<K: JsCast>(
         &self,
         key: &K,
     ) -> Result<JsCastRequestFuture<js_sys::Array>, DomException>;
 
     /// Get all the keys in the index/object store that correspond to the given key or are in range
-    /// if the key is an [IDBKeyRange][web_sys::IdbKeyRange].
+    /// if the key is an [`IDBKeyRange`](web_sys::IdbKeyRange).
     #[inline]
     fn get_all_keys_with_key_owned<K: Into<JsValue>>(
         &self,
@@ -96,7 +96,7 @@ pub trait IdbQuerySource: Sized {
     }
 
     /// Get all the keys in the index/object store that correspond to the given key or are in range
-    /// if the key is an [IDBKeyRange][web_sys::IdbKeyRange], up to the given limit.
+    /// if the key is an [`IDBKeyRange`](web_sys::IdbKeyRange), up to the given limit.
     fn get_all_keys_with_key_and_limit<K: JsCast>(
         &self,
         key: &K,
@@ -104,7 +104,7 @@ pub trait IdbQuerySource: Sized {
     ) -> Result<JsCastRequestFuture<js_sys::Array>, DomException>;
 
     /// Get all the keys in the index/object store that correspond to the given key or are in range
-    /// if the key is an [IDBKeyRange][web_sys::IdbKeyRange], up to the given limit.
+    /// if the key is an [`IDBKeyRange`](web_sys::IdbKeyRange), up to the given limit.
     fn get_all_keys_with_key_and_limit_owned<K: Into<JsValue>>(
         &self,
         key: K,
@@ -122,85 +122,102 @@ pub trait IdbQuerySource: Sized {
         self.get_all_keys_with_key_and_limit(&JsValue::undefined(), limit)
     }
 
-    // Cursors
-    cfg_if::cfg_if! {
-        if #[cfg(feature = "cursors")] {
-            /// Open a cursor
-            ///
-            /// Features required: `cursors`
-            fn open_cursor(&self) -> Result<IdbCursorWithValueFuture<Self>, DomException>;
+    /// Open a cursor
+    #[cfg(feature = "cursors")]
+    fn open_cursor(&self) -> Result<IdbCursorWithValueFuture<Self>, DomException>;
 
-            /// Open a cursor with the given key range
-            ///
-            /// Features required: `cursors`
-            fn open_cursor_with_range<K: JsCast>(&self, range: &K) -> Result<IdbCursorWithValueFuture<Self>, DomException>;
+    /// Open a cursor with the given key range
+    #[cfg(feature = "cursors")]
+    fn open_cursor_with_range<K: JsCast>(
+        &self,
+        range: &K,
+    ) -> Result<IdbCursorWithValueFuture<Self>, DomException>;
 
-            /// Open a cursor with the given key range
-            ///
-            /// Features required: `cursors`
-            #[inline]
-            fn open_cursor_with_range_owned<K: Into<JsValue>>(&self, range: K) -> Result<IdbCursorWithValueFuture<Self>, DomException> {
-                self.open_cursor_with_range(&range.into())
-            }
+    /// Open a cursor with the given key range
+    #[cfg(feature = "cursors")]
+    #[inline]
+    fn open_cursor_with_range_owned<K: Into<JsValue>>(
+        &self,
+        range: K,
+    ) -> Result<IdbCursorWithValueFuture<Self>, DomException> {
+        self.open_cursor_with_range(&range.into())
+    }
 
-            /// Open a cursor with the given key range and direction
-            ///
-            /// Features required: `cursors`
-            fn open_cursor_with_range_and_direction<K: JsCast>(&self, range: &K, direction: web_sys::IdbCursorDirection) -> Result<IdbCursorWithValueFuture<Self>, DomException>;
+    /// Open a cursor with the given key range and direction
+    #[cfg(feature = "cursors")]
+    fn open_cursor_with_range_and_direction<K: JsCast>(
+        &self,
+        range: &K,
+        direction: web_sys::IdbCursorDirection,
+    ) -> Result<IdbCursorWithValueFuture<Self>, DomException>;
 
-            /// Open a cursor with the given key range and direction
-            ///
-            /// Features required: `cursors`
-            #[inline]
-            fn open_cursor_with_range_and_direction_owned<K: Into<JsValue>>(&self, range: K, direction: web_sys::IdbCursorDirection) -> Result<IdbCursorWithValueFuture<Self>, DomException> {
-                self.open_cursor_with_range_and_direction(&range.into(), direction)
-            }
+    /// Open a cursor with the given key range and direction
+    #[cfg(feature = "cursors")]
+    #[inline]
+    fn open_cursor_with_range_and_direction_owned<K: Into<JsValue>>(
+        &self,
+        range: K,
+        direction: web_sys::IdbCursorDirection,
+    ) -> Result<IdbCursorWithValueFuture<Self>, DomException> {
+        self.open_cursor_with_range_and_direction(&range.into(), direction)
+    }
 
-            /// Open a cursor with the given and direction
-            ///
-            /// Features required: `cursors`
-            #[inline]
-            fn open_cursor_with_direction(&self, direction: web_sys::IdbCursorDirection) -> Result<IdbCursorWithValueFuture<Self>, DomException> {
-                self.open_cursor_with_range_and_direction(&JsValue::undefined(), direction)
-            }
+    /// Open a cursor with the given and direction
+    #[cfg(feature = "cursors")]
+    #[inline]
+    fn open_cursor_with_direction(
+        &self,
+        direction: web_sys::IdbCursorDirection,
+    ) -> Result<IdbCursorWithValueFuture<Self>, DomException> {
+        self.open_cursor_with_range_and_direction(&JsValue::undefined(), direction)
+    }
 
-            /// Open a key cursor
-            ///
-            /// Features required: `cursors`
-            fn open_key_cursor(&self) -> Result<IdbCursorFuture<Self>, DomException>;
+    /// Open a key cursor
+    #[cfg(feature = "cursors")]
+    fn open_key_cursor(&self) -> Result<IdbCursorFuture<Self>, DomException>;
 
-            /// Open a key cursor with the given key range
-            ///
-            /// Features required: `cursors`
-            fn open_key_cursor_with_range<K: JsCast>(&self, range: &K) -> Result<IdbCursorFuture<Self>, DomException>;
+    /// Open a key cursor with the given key range
+    #[cfg(feature = "cursors")]
+    fn open_key_cursor_with_range<K: JsCast>(
+        &self,
+        range: &K,
+    ) -> Result<IdbCursorFuture<Self>, DomException>;
 
-            /// Open a key cursor with the given key range
-            ///
-            /// Features required: `cursors`
-            #[inline]
-            fn open_key_cursor_with_range_owned<K: Into<JsValue>>(&self, range: K) -> Result<IdbCursorFuture<Self>, DomException> {
-                self.open_key_cursor_with_range(&range.into())
-            }
+    /// Open a key cursor with the given key range
+    #[cfg(feature = "cursors")]
+    #[inline]
+    fn open_key_cursor_with_range_owned<K: Into<JsValue>>(
+        &self,
+        range: K,
+    ) -> Result<IdbCursorFuture<Self>, DomException> {
+        self.open_key_cursor_with_range(&range.into())
+    }
 
-            /// Open a key cursor with the given key range and direction
-            ///
-            /// Features required: `cursors`
-            fn open_key_cursor_with_range_and_direction<K: JsCast>(&self, range: &K, direction: web_sys::IdbCursorDirection) -> Result<IdbCursorFuture<Self>, DomException>;
+    /// Open a key cursor with the given key range and direction
+    #[cfg(feature = "cursors")]
+    fn open_key_cursor_with_range_and_direction<K: JsCast>(
+        &self,
+        range: &K,
+        direction: web_sys::IdbCursorDirection,
+    ) -> Result<IdbCursorFuture<Self>, DomException>;
 
-            /// Open a key cursor with the given key range and direction
-            ///
-            /// Features required: `cursors`
-            fn open_key_cursor_with_range_and_direction_owned<K: Into<JsValue>>(&self, range: K, direction: web_sys::IdbCursorDirection) -> Result<IdbCursorFuture<Self>, DomException> {
-                self.open_key_cursor_with_range_and_direction(&range.into(), direction)
-            }
+    /// Open a key cursor with the given key range and direction
+    #[cfg(feature = "cursors")]
+    fn open_key_cursor_with_range_and_direction_owned<K: Into<JsValue>>(
+        &self,
+        range: K,
+        direction: web_sys::IdbCursorDirection,
+    ) -> Result<IdbCursorFuture<Self>, DomException> {
+        self.open_key_cursor_with_range_and_direction(&range.into(), direction)
+    }
 
-            /// Open a key cursor with the given and direction
-            ///
-            /// Features required: `cursors`
-            #[inline]
-            fn open_key_cursor_with_direction(&self, direction: web_sys::IdbCursorDirection) -> Result<IdbCursorFuture<Self>, DomException> {
-                self.open_key_cursor_with_range_and_direction(&JsValue::undefined(), direction)
-            }
-        }
+    /// Open a key cursor with the given and direction
+    #[cfg(feature = "cursors")]
+    #[inline]
+    fn open_key_cursor_with_direction(
+        &self,
+        direction: web_sys::IdbCursorDirection,
+    ) -> Result<IdbCursorFuture<Self>, DomException> {
+        self.open_key_cursor_with_range_and_direction(&JsValue::undefined(), direction)
     }
 }

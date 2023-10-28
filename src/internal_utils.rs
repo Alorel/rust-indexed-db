@@ -1,10 +1,39 @@
 use std::cell::RefCell;
-use std::ops::Deref;
+
 use std::rc::Rc;
 use std::task::Waker;
 
 use cfg_if::cfg_if;
 use wasm_bindgen::prelude::*;
+
+/// `unwrap_unchecked` if running in nightly, else just unwrap
+pub(crate) trait NightlyUnwrap<T> {
+    fn nightly_unwrap(self) -> T;
+}
+
+impl<T> NightlyUnwrap<T> for Option<T> {
+    fn nightly_unwrap(self) -> T {
+        cfg_if! {
+            if #[cfg(feature = "nightly")] {
+                unsafe { self.unwrap_unchecked() }
+            } else {
+                self.unwrap()
+            }
+        }
+    }
+}
+
+impl<T, E: std::fmt::Debug> NightlyUnwrap<T> for Result<T, E> {
+    fn nightly_unwrap(self) -> T {
+        cfg_if! {
+            if #[cfg(feature = "nightly")] {
+                unsafe { self.unwrap_unchecked() }
+            } else {
+                self.unwrap()
+            }
+        }
+    }
+}
 
 #[cfg(test)]
 pub(crate) async fn open_any_db() -> (crate::IdbDatabase, String) {
@@ -12,43 +41,19 @@ pub(crate) async fn open_any_db() -> (crate::IdbDatabase, String) {
 
     let db = uuid::Uuid::new_v4().to_string();
     let store = uuid::Uuid::new_v4().to_string();
-    let mut req = crate::IdbDatabase::open(&db).expect("db open");
+    let mut req = IdbDatabase::open(&db).expect("db open");
     let store_cloned = store.clone();
     req.set_on_upgrade_needed(Some(move |evt: &IdbVersionChangeEvent| {
         evt.db().create_object_store(&store_cloned)?;
         Ok(())
     }));
 
-    (req.into_future().await.expect("fut"), store)
-}
-
-/// unwrap_unchecked if running in nightly, else just unwrap
-#[inline]
-pub(crate) fn safe_unwrap_option<T>(option: Option<T>) -> T {
-    cfg_if! {
-        if #[cfg(feature = "nightly")] {
-            unsafe { option.unwrap_unchecked() }
-        } else {
-            option.unwrap()
-        }
-    }
-}
-
-/// unwrap_unchecked if running in nightly, else just unwrap
-#[inline]
-pub(crate) fn safe_unwrap_result<O, E: std::fmt::Debug>(result: Result<O, E>) -> O {
-    cfg_if! {
-        if #[cfg(feature = "nightly")] {
-            unsafe { result.unwrap_unchecked() }
-        } else {
-            result.unwrap()
-        }
-    }
+    (req.await.expect("fut"), store)
 }
 
 /// Wake the given option ref cell
 pub(crate) fn wake(waker: &RefCell<Option<Waker>>) {
-    if let Some(w) = waker.borrow().deref() {
+    if let Some(ref w) = *waker.borrow() {
         w.wake_by_ref();
     }
 }
@@ -69,12 +74,7 @@ pub(crate) fn create_lazy_ref_cell<T>() -> Rc<RefCell<Option<T>>> {
 }
 
 pub(crate) fn arrayify_slice(slice: &[&str]) -> js_sys::Array {
-    slice.iter().map(jsvalue_from).collect()
-}
-
-#[inline]
-fn jsvalue_from(v: &&str) -> JsValue {
-    JsValue::from_str(v)
+    slice.iter().map(move |v| JsValue::from_str(v)).collect()
 }
 
 #[cfg(test)]

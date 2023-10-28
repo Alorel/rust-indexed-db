@@ -1,5 +1,6 @@
 //! Database-related code
 
+use fancy_constructor::new;
 use wasm_bindgen::{prelude::*, JsCast};
 use web_sys::{DomException, IdbTransactionMode};
 
@@ -14,24 +15,19 @@ use crate::request::{OpenDbRequest, VoidOpenDbRequest};
 
 mod idb_version_change_event;
 
-/// Wrapper for an IndexedDB database
-#[derive(Debug)]
+/// Wrapper for an [`IndexedDB`](web_sys::IdbDatabase)
+#[derive(Debug, new)]
+#[new(vis(pub(crate)))]
 pub struct IdbDatabase {
     inner: web_sys::IdbDatabase,
+
+    #[new(default)]
     on_version_change: Option<IdbVersionChangeCallback>,
 }
 
 type OpenDbResult = Result<OpenDbRequest, DomException>;
 
 impl IdbDatabase {
-    #[inline]
-    pub(crate) fn new(inner: web_sys::IdbDatabase) -> Self {
-        Self {
-            inner,
-            on_version_change: None,
-        }
-    }
-
     /// Open the database with the given name
     pub fn open(name: &str) -> OpenDbResult {
         Ok(OpenDbRequest::new(factory().open(name)?))
@@ -47,33 +43,30 @@ impl IdbDatabase {
         Ok(OpenDbRequest::new(factory().open_with_f64(name, version)?))
     }
 
-    #[inline]
-    fn inner(&self) -> &web_sys::IdbDatabase {
-        &self.inner
-    }
-
     /// List the names of the object stores within this database
     #[inline]
     pub fn object_store_names(&self) -> impl Iterator<Item = String> + 'static {
-        DomStringIterator::from(self.inner().object_store_names())
+        DomStringIterator::from(self.inner.object_store_names())
     }
 
     /// Get the database name
     #[inline]
+    #[must_use]
     pub fn name(&self) -> String {
-        self.inner().name()
+        self.inner.name()
     }
 
     /// Get the database version
     #[inline]
+    #[must_use]
     pub fn version(&self) -> f64 {
-        self.inner().version()
+        self.inner.version()
     }
 
     /// Close the database connection
     #[inline]
     pub fn close(&self) {
-        self.inner().close();
+        self.inner.close();
     }
 
     /// Delete the object store with the given name
@@ -99,23 +92,20 @@ impl IdbDatabase {
     where
         F: Fn(&IdbVersionChangeEvent) -> Result<(), JsValue> + 'static,
     {
-        self.on_version_change = match callback {
-            Some(callback) => {
-                let cb = IdbVersionChangeEvent::wrap_callback(callback);
-                self.inner
-                    .set_onversionchange(Some(cb.as_ref().unchecked_ref()));
-                Some(cb)
-            }
-            None => {
-                self.inner.set_onversionchange(None);
-                None
-            }
+        self.on_version_change = if let Some(callback) = callback {
+            let cb = IdbVersionChangeEvent::wrap_callback(callback);
+            self.inner
+                .set_onversionchange(Some(cb.as_ref().unchecked_ref()));
+            Some(cb)
+        } else {
+            self.inner.set_onversionchange(None);
+            None
         };
     }
 
     /// Start a transaction on the given object store
     pub fn transaction_on_one(&self, name: &str) -> Result<IdbTransaction, DomException> {
-        let inner = self.inner().transaction_with_str(name)?;
+        let inner = self.inner.transaction_with_str(name)?;
         Ok(IdbTransaction::new(inner, self))
     }
 
@@ -131,7 +121,7 @@ impl IdbDatabase {
         names: &V,
     ) -> Result<IdbTransaction, DomException> {
         let res = self
-            .inner()
+            .inner
             .transaction_with_str_sequence(names.unchecked_ref())?;
         Ok(IdbTransaction::new(res, self))
     }
@@ -142,7 +132,7 @@ impl IdbDatabase {
         name: &str,
         mode: IdbTransactionMode,
     ) -> Result<IdbTransaction, DomException> {
-        let res = self.inner().transaction_with_str_and_mode(name, mode)?;
+        let res = self.inner.transaction_with_str_and_mode(name, mode)?;
         Ok(IdbTransaction::new(res, self))
     }
 
@@ -163,14 +153,14 @@ impl IdbDatabase {
         mode: IdbTransactionMode,
     ) -> Result<IdbTransaction, DomException> {
         let res = self
-            .inner()
+            .inner
             .transaction_with_str_sequence_and_mode(names.unchecked_ref(), mode)?;
         Ok(IdbTransaction::new(res, self))
     }
 
     /// Create an object store with the given name
     pub fn create_object_store(&self, name: &str) -> Result<IdbObjectStore, DomException> {
-        let inner = self.inner().create_object_store(name)?;
+        let inner = self.inner.create_object_store(name)?;
         Ok(IdbObjectStore::from_db(inner, self))
     }
 
@@ -181,7 +171,7 @@ impl IdbDatabase {
         params: &IdbObjectStoreParameters,
     ) -> Result<IdbObjectStore, DomException> {
         let inner = self
-            .inner()
+            .inner
             .create_object_store_with_optional_parameters(name, params.as_js_value())?;
         Ok(IdbObjectStore::from_db(inner, self))
     }
@@ -189,7 +179,7 @@ impl IdbDatabase {
 
 impl Drop for IdbDatabase {
     fn drop(&mut self) {
-        if let Some(_) = self.on_version_change {
+        if self.on_version_change.is_some() {
             self.inner.set_onversionchange(None);
         }
     }
@@ -249,21 +239,21 @@ fn factory() -> web_sys::IdbFactory {
 
 #[cfg(test)]
 pub mod test {
-    use crate::request::IdbOpenDbRequestLike;
     use core::future::Future;
+    use std::cell::RefCell;
+    use std::rc::Rc;
+
+    use crate::request::IdbOpenDbRequestLike;
+    use crate::{IdbKeyPath, IdbQuerySource};
 
     use super::*;
-    use crate::{IdbKeyPath, IdbQuerySource};
-    use std::cell::RefCell;
-    use std::ops::Deref;
-    use std::rc::Rc;
 
     fn db_name() -> String {
         uuid::Uuid::new_v4().to_string()
     }
 
     async fn open_db(req: OpenDbRequest) -> IdbDatabase {
-        req.into_future().await.expect("Future failed")
+        req.await.expect("Future failed")
     }
 
     fn open_db_req(req: Result<OpenDbRequest, DomException>) -> impl Future<Output = IdbDatabase> {
@@ -280,12 +270,14 @@ pub mod test {
         });
 
         test_case!(async iter_with_two => {
-            let mut req = IdbDatabase::open(&db_name()).expect("Base open");
             fn on_upgrade_needed(evt: &IdbVersionChangeEvent) -> Result<(), JsValue> {
                 evt.db().create_object_store("store1")?;
                 evt.db().create_object_store("store2")?;
+                let _ = evt.transaction(); // make sure it doesn't panic
                 Ok(())
             }
+
+            let mut req = IdbDatabase::open(&db_name()).expect("Base open");
             req.set_on_upgrade_needed(Some(on_upgrade_needed));
             let db = open_db(req).await;
             let stores: Vec<String> = db.object_store_names().collect();
@@ -297,9 +289,10 @@ pub mod test {
     pub mod open {
         test_mod_init!();
 
+        #[allow(clippy::needless_pass_by_value)]
         fn test_version(db: &IdbDatabase, version_expected: f64, name_expected: String) {
             assert_eq!(db.name(), name_expected, "name");
-            assert_eq!(db.version(), version_expected, "version");
+            assert!((db.version() - version_expected).abs() < 0.01, "version");
         }
 
         test_case!(async should_open_without_version => {
@@ -330,7 +323,7 @@ pub mod test {
                 evt.db().create_object_store("s2")?;
                 Ok(())
             }));
-            let db = req.into_future().await.expect("db await 1");
+            let db = req.await.expect("db await 1");
             db.close();
 
             let mut req = IdbDatabase::open_u32(&db_name, 2).expect("open 2");
@@ -338,7 +331,7 @@ pub mod test {
                 evt.db().delete_object_store("s1")?;
                 Ok(())
             }));
-            let db = req.into_future().await.expect("db await 2");
+            let db = req.await.expect("db await 2");
             let stores: Vec<String> = db.object_store_names().collect();
             let exp = vec![String::from("s2"); 1];
 
@@ -346,29 +339,31 @@ pub mod test {
         });
 
         test_case!(async delete_by_name => {
-            let db_name = db_name();
-            let calls = Rc::new(RefCell::new(0));
-
             async fn do_open(name: &str, v: u32, calls: Rc<RefCell<u8>>) -> IdbDatabase {
-                let mut req = IdbDatabase::open_u32(&name, v).expect("open");
+                let mut req = IdbDatabase::open_u32(name, v).expect("open");
                 req.set_on_upgrade_needed(Some(move |_: &IdbVersionChangeEvent| {
-                    let curr = *calls.borrow().deref();
+                    let curr = *calls.borrow();
                     calls.replace(curr + 1);
                     Ok(())
                 }));
-                req.into_future().await.expect("db await")
+                req.await.expect("db await")
             }
 
+            let db_name = db_name();
+            let calls = Rc::new(RefCell::new(0));
+
             let db = do_open(&db_name, 1, calls.clone()).await;
-            db.delete().expect("Delete call").into_future().await.expect("delete promise");
+            db.delete().expect("Delete call").await.expect("delete promise");
             do_open(&db_name, 1, calls.clone()).await;
-            assert_eq!(*calls.borrow().deref(), 2);
+
+            assert_eq!(*calls.borrow(), 2);
         });
     }
 
     pub mod tx_open {
         test_mod_init!();
 
+        #[allow(clippy::needless_pass_by_value)]
         fn check_transaction(
             res: Result<IdbTransaction, DomException>,
             mode: IdbTransactionMode,
@@ -389,7 +384,7 @@ pub mod test {
                 evt.db().create_object_store("s2")?;
                 Ok(())
             }));
-            req.into_future().await.expect("db await 1")
+            req.await.expect("db await 1")
         }
 
         test_case!(async transaction_on_one => {
@@ -449,11 +444,11 @@ pub mod test {
             )?;
             Ok(())
         }));
-        let db = req.into_future().await.expect("db");
+        let db = req.await.expect("db");
         let tx = db.transaction_on_one("s1").expect("tx");
         let store = tx.object_store("s1").expect("store");
 
         assert_eq!(store.key_path(), Some(IdbKeyPath::str("foo")), "key path");
-        assert_eq!(store.auto_increment(), true, "auto_icrement");
+        assert!(store.auto_increment(), "auto_icrement");
     });
 }

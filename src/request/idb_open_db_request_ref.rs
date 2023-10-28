@@ -1,46 +1,40 @@
+use std::future::{Future, IntoFuture};
 use std::ops::{Deref, DerefMut};
 use std::rc::{Rc, Weak};
 
+use fancy_constructor::new;
 use wasm_bindgen::{prelude::*, JsCast};
 
 use crate::idb_database::{IdbVersionChangeCallback, IdbVersionChangeEvent};
-use crate::internal_utils::{safe_unwrap_option, safe_unwrap_result};
+use crate::internal_utils::NightlyUnwrap;
 
 use super::{IdbOpenDbRequestFuture, IdbRequestRef};
 
-#[derive(Debug)]
+#[derive(Debug, new)]
 pub(crate) struct OpenDbRequestListeners {
     request: Weak<IdbRequestRef>,
+
+    #[new(default)]
     on_blocked: Option<IdbVersionChangeCallback>,
+
+    #[new(default)]
     on_upgrade_needed: Option<IdbVersionChangeCallback>,
 }
 
 impl OpenDbRequestListeners {
-    #[inline]
-    fn new(request: Weak<IdbRequestRef>) -> Self {
-        Self {
-            request,
-            on_upgrade_needed: None,
-            on_blocked: None,
-        }
-    }
-
     pub fn set_on_upgrade_needed<F>(&mut self, callback: Option<F>)
     where
         F: Fn(&IdbVersionChangeEvent) -> Result<(), JsValue> + 'static,
     {
-        let base = safe_unwrap_option(self.request.upgrade());
+        let base = self.request.upgrade().nightly_unwrap();
         let req = base.inner_as_idb_request();
-        self.on_upgrade_needed = match callback {
-            Some(callback) => {
-                let callback = IdbVersionChangeEvent::wrap_callback(callback);
-                req.set_onupgradeneeded(Some(callback.as_ref().unchecked_ref()));
-                Some(callback)
-            }
-            None => {
-                req.set_onupgradeneeded(None);
-                None
-            }
+        self.on_upgrade_needed = if let Some(callback) = callback {
+            let callback = IdbVersionChangeEvent::wrap_callback(callback);
+            req.set_onupgradeneeded(Some(callback.as_ref().unchecked_ref()));
+            Some(callback)
+        } else {
+            req.set_onupgradeneeded(None);
+            None
         };
     }
 
@@ -48,18 +42,15 @@ impl OpenDbRequestListeners {
     where
         F: Fn(&IdbVersionChangeEvent) -> Result<(), JsValue> + 'static,
     {
-        let base = safe_unwrap_option(self.request.upgrade());
+        let base = self.request.upgrade().nightly_unwrap();
         let req = base.inner_as_idb_request();
-        self.on_blocked = match callback {
-            Some(callback) => {
-                let callback = IdbVersionChangeEvent::wrap_callback(callback);
-                req.set_onblocked(Some(callback.as_ref().unchecked_ref()));
-                Some(callback)
-            }
-            None => {
-                req.set_onblocked(None);
-                None
-            }
+        self.on_blocked = if let Some(callback) = callback {
+            let callback = IdbVersionChangeEvent::wrap_callback(callback);
+            req.set_onblocked(Some(callback.as_ref().unchecked_ref()));
+            Some(callback)
+        } else {
+            req.set_onblocked(None);
+            None
         };
     }
 
@@ -101,15 +92,26 @@ impl IdbOpenDbRequestRef {
         Self { base, listeners }
     }
 
-    pub fn into_future(self, read_response: bool) -> IdbOpenDbRequestFuture {
+    pub(crate) fn into_future(self, read_response: bool) -> IdbOpenDbRequestFuture {
         // We need to take the request out of the Rc to turn it into a future
-        let base = safe_unwrap_result(Rc::try_unwrap(self.base)).into_future(read_response);
+        let base = Rc::try_unwrap(self.base)
+            .nightly_unwrap()
+            .into_future(read_response);
 
         // Then we need to re-set the new weak ref
         let mut listeners = self.listeners;
         listeners.request = base.weak_request();
 
         IdbOpenDbRequestFuture::new(base, listeners)
+    }
+}
+
+impl IntoFuture for IdbOpenDbRequestRef {
+    type Output = <IdbOpenDbRequestFuture as Future>::Output;
+    type IntoFuture = IdbOpenDbRequestFuture;
+
+    fn into_future(self) -> Self::IntoFuture {
+        self.into_future(true)
     }
 }
 

@@ -12,24 +12,28 @@ pub struct IdbKeyPath(JsValue);
 impl IdbKeyPath {
     /// Create a key path from a &str
     #[inline]
+    #[must_use]
     pub fn str(key_path: &str) -> Self {
         Self::new(key_path.into())
     }
 
     /// Create a key path from a &str sequence
     #[inline]
+    #[must_use]
     pub fn str_sequence(key_paths: &[&str]) -> Self {
         Self::new(arrayify_slice(key_paths).unchecked_into())
     }
 
-    /// Create a key path from a JsValue. The value should be a JS string or array of strings.
+    /// Create a key path from a [`JsValue`]. The value should be a JS string or array of strings.
     #[inline]
+    #[must_use]
     pub fn new(key_paths: JsValue) -> Self {
         Self(key_paths)
     }
 
     /// The converted JS value
     #[inline]
+    #[must_use]
     pub fn as_js_value(&self) -> &JsValue {
         &self.0
     }
@@ -99,7 +103,7 @@ impl Hash for IdbKeyPath {
 }
 
 fn hash_array<H: Hasher>(arr: &js_sys::Array, h: &mut H) {
-    let len = arr.length() as u32;
+    let len = arr.length();
 
     h.write_u32(len);
 

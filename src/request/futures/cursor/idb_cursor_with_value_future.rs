@@ -1,3 +1,4 @@
+use fancy_constructor::new;
 use std::future::Future;
 use std::pin::Pin;
 use std::task::{Context, Poll};
@@ -9,18 +10,12 @@ use crate::idb_query_source::IdbQuerySource;
 
 use super::IdbCursorFuture;
 
-/// A [Future][std::future::Future] that resolves to an [IdbCursorWithValue]
-///
-/// Features required: `cursors`
-#[derive(Debug)]
+/// A [`Future`] that resolves to an [`IdbCursorWithValue`]
+#[derive(Debug, new)]
+#[new(vis(pub(crate)))]
 pub struct IdbCursorWithValueFuture<'a, T: IdbQuerySource>(IdbCursorFuture<'a, T>);
 
 impl<'a, T: IdbQuerySource> IdbCursorWithValueFuture<'a, T> {
-    #[inline]
-    pub(crate) fn new(base: IdbCursorFuture<'a, T>) -> Self {
-        Self(base)
-    }
-
     fn on_ready(
         res: Result<Option<IdbCursor<'a, T>>, DomException>,
     ) -> Result<Option<IdbCursorWithValue<'a, T>>, DomException> {
