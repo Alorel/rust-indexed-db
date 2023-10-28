@@ -1,0 +1,33 @@
+name: Release
+description: Do the release
+inputs:
+  version:
+    description: Version to release
+    required: true
+  changelog:
+    description: The changelog
+    required: true
+  issues-closed:
+    description: Issues we've closed
+  crates-io-token:
+    description: crates.io API token
+    required: true
+runs:
+  using: composite
+  steps:
+    - uses: alorel-actions/cargo/release-git@v1
+      with:
+        version: ${{ inputs.version }}
+        changelog: ${{ inputs.changelog }}
+
+    - name: Publish crate
+      shell: bash
+      run: cargo publish --locked --token ${{ inputs.crates-io-token }}
+
+    - name: Notify
+      if: ${{ inputs.issues-closed }}
+      uses: alorel-actions/semantic-release-lite/notify@v0
+      with:
+        tag: ${{ inputs.version }}
+        issues: ${{ inputs.issues-closed }}
+        allow-out-of-sync: true
