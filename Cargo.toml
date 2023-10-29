@@ -1,6 +1,6 @@
 [package]
 name = "indexed_db_futures"
-version = "0.3.0"
+version = "0.4.0"
 authors = ["Arturas Molcanovas <amolc@protonmail.com>"]
 edition = "2021"
 rust-version = "1.60.0"
@@ -13,6 +13,13 @@ include = [
     "src/",
     "Cargo.toml",
     "README.md"
+]
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = [
+    "--cfg",
+    "doc_cfg",
 ]
 
 [features]
@@ -68,11 +75,4 @@ features = [
     "IdbVersionChangeEvent",
     "Window",
     "WorkerGlobalScope",
-]
-
-[package.metadata.docs.rs]
-all-features = true
-rustdoc-args = [
-    "--cfg",
-    "doc_cfg",
 ]
