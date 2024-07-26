@@ -227,6 +227,19 @@ macro_rules! impl_query_source {
             }
 
             #[inline]
+            fn get_all_with_key_and_limit<K: wasm_bindgen::JsCast>(
+                &self,
+                key: &K,
+                limit: u32,
+            ) -> Result<$crate::request::JsCastRequestFuture<js_sys::Array>, web_sys::DomException>
+            {
+                #[allow(unused_imports)]
+                use wasm_bindgen::JsCast;
+                let base = self.inner.get_all_with_key_and_limit(key.unchecked_ref(), limit);
+                $crate::request::JsCastRequestFuture::new(base)
+            }
+
+            #[inline]
             fn count(&self) -> Result<$crate::request::CountFuture, web_sys::DomException> {
                 $crate::request::CountFuture::new(self.inner.count())
             }
