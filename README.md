@@ -5,7 +5,7 @@
 Wraps the [web_sys](https://crates.io/crates/web_sys) Indexed DB API in a Future-based API and
 removes the pain of dealing with Javascript callbacks in Rust.
 
-[![master CI badge](https://github.com/Alorel/rust-indexed-db/actions/workflows/core.yml/badge.svg)](https://github.com/Alorel/rust-indexed-db/actions/workflows/core.yml)
+[![master CI badge](https://github.com/Alorel/rust-indexed-db/actions/workflows/test.yml/badge.svg)](https://github.com/Alorel/rust-indexed-db/actions/workflows/test.yml)
 [![crates.io badge](https://img.shields.io/crates/v/indexed_db_futures)](https://crates.io/crates/indexed_db_futures)
 [![docs.rs badge](https://img.shields.io/docsrs/indexed_db_futures?label=docs.rs)](https://docs.rs/indexed_db_futures)
 [![dependencies badge](https://img.shields.io/librariesio/release/cargo/indexed_db_futures)](https://libraries.io/cargo/indexed_db_futures)
