@@ -49,7 +49,7 @@ impl IdbTransaction<'_> {
 
     /// Return a `DOMException` indicating the type of error that occurred when there is an
     /// unsuccessful transaction. This property is `None` if the transaction is not finished, is
-    /// finished and successfully committed, or was aborted with abort() function.
+    /// finished and successfully committed, or was aborted with `abort()` function.
     #[inline]
     #[must_use]
     pub fn error(&self) -> Option<DomException> {

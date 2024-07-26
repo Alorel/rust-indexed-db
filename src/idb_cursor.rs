@@ -171,8 +171,8 @@ impl<'a, T: IdbQuerySource> IdbCursor<'a, T> {
     /// ### Arguments
     ///
     /// - **skip** - how many times to advance the cursor before starting to collect keys. Setting
-    /// this to 0 will include the current key and value in the output; setting it to 5 will skip
-    /// the current key + value and 4 more.
+    ///   this to 0 will include the current key and value in the output; setting it to 5 will skip
+    ///   the current key + value and 4 more.
     pub async fn into_vec(self, skip: u32) -> Result<Vec<JsValue>, DomException> {
         fn passthrough(v: JsValue) -> JsValue {
             v

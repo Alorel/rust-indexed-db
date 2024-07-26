@@ -162,7 +162,8 @@ impl<'a> IdbObjectStore<'a> {
 
     /// A list of the names of indices on objects in this object store.
     #[inline]
-    pub fn index_names(&self) -> impl Iterator<Item = String> + ExactSizeIterator {
+    #[must_use]
+    pub fn index_names(&self) -> impl ExactSizeIterator<Item = String> {
         crate::dom_string_iterator::DomStringIterator::from(self.inner.index_names())
     }
 
