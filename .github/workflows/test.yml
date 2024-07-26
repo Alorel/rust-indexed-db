@@ -1,0 +1,32 @@
+name: Test
+on:
+  push:
+    branches:
+      - master
+    paths-ignore:
+      - .github/CODE_OF_CONDUCT.md
+      - .github/CODEOWNERS
+      - .github/dependabot.yml
+      - .github/FUNDING.yml
+      - LICENSE
+      - .gitignore
+  pull_request:
+    paths-ignore:
+      - .github/CODE_OF_CONDUCT.md
+      - .github/CODEOWNERS
+      - .github/dependabot.yml
+      - .github/FUNDING.yml
+      - LICENSE
+      - .gitignore
+
+permissions:
+  contents: read
+
+env:
+  CARGO_INCREMENTAL: 0
+  RUSTFLAGS: --deny warnings
+
+jobs:
+  test:
+    name: Test
+    uses: ./.github/workflows/_test.yml
