@@ -8,6 +8,7 @@ on:
       - .github/CODEOWNERS
       - .github/dependabot.yml
       - .github/FUNDING.yml
+      - .github/workflows/release.yml
       - LICENSE
       - .gitignore
   pull_request:
@@ -16,6 +17,7 @@ on:
       - .github/CODEOWNERS
       - .github/dependabot.yml
       - .github/FUNDING.yml
+      - .github/workflows/release.yml
       - LICENSE
       - .gitignore
 
