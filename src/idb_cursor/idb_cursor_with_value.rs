@@ -34,8 +34,8 @@ impl<'a, T: IdbQuerySource> IdbCursorWithValue<'a, T> {
     /// ### Arguments
     ///
     /// - **skip** - how many times to advance the cursor before starting to collect key-value
-    /// pairs. Setting this to 0 will include the current key and value in the output; setting it to
-    /// 5 will skip the current key + value and 4 more.
+    ///   pairs. Setting this to 0 will include the current key and value in the output; setting it to
+    ///   5 will skip the current key + value and 4 more.
     pub async fn into_vec(self, skip: u32) -> Result<Vec<KeyVal>, DomException> {
         self.handle_into_vec(skip, |k| KeyVal::new(k, self.value()))
             .await

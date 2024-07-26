@@ -11,7 +11,7 @@ use crate::internal_utils::NightlyUnwrap;
 
 use super::super::IdbRequestFuture;
 
-/// Future for cursors' advance() and continue()
+/// Future for cursors' `advance()` and `continue()`
 #[derive(DelegateDebug, new)]
 pub(crate) struct IdbCursorAdvancementFuture(IdbRequestFuture);
 
