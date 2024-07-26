@@ -24,11 +24,6 @@ runs:
       shell: bash
       run: cargo publish --locked --token ${{ inputs.crates-io-token }}
 
-    - name: Update master
-      shell: bash
-      run: git checkout master && git merge ${{ github.ref_name }} && git push
-      continue-on-error: true
-
     - name: Notify
       if: ${{ inputs.issues-closed }}
       uses: alorel-actions/semantic-release-lite/notify@v0

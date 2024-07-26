@@ -1,9 +1,7 @@
 name: Release
 concurrency: release
 on:
-  push:
-    branches:
-      - release
+  workflow_dispatch: {}
 
 permissions:
   contents: read
