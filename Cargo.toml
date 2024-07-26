@@ -3,7 +3,7 @@ name = "indexed_db_futures"
 version = "0.4.1"
 authors = ["Arturas Molcanovas <amolc@protonmail.com>"]
 edition = "2021"
-rust-version = "1.60.0"
+rust-version = "1.64.0"
 license = "MIT"
 description = "Future bindings for IndexedDB via web_sys"
 repository = "https://github.com/Alorel/rust-indexed-db"
@@ -76,3 +76,6 @@ features = [
     "Window",
     "WorkerGlobalScope",
 ]
+
+[lints.rust]
+unexpected_cfgs = { level = "deny", check-cfg = ['cfg(doc_cfg)'] }
