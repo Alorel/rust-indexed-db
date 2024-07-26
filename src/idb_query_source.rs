@@ -49,6 +49,26 @@ pub trait IdbQuerySource: Sized {
         self.get_all_with_key(&key.into())
     }
 
+    /// Get all values in the index/object store that correspond to the given key or are in
+    /// range, if the key is an [`IDBKeyRange`](web_sys::IdbKeyRange). `limit` controls the
+    /// maximum number of results to return
+    fn get_all_with_key_and_limit<K: JsCast>(
+        &self,
+        key: &K,
+        limit: u32,
+    ) -> Result<JsCastRequestFuture<js_sys::Array>, DomException>;
+
+    /// Get all values in the index/object store that correspond to the given key or are in
+    /// range, if the key is an [`IDBKeyRange`](web_sys::IdbKeyRange). `limit` controls the
+    /// maximum number of results to return
+    fn get_all_with_key_and_limit_owned<K: Into<JsValue>>(
+        &self,
+        key: K,
+        limit: u32,
+    ) -> Result<JsCastRequestFuture<js_sys::Array>, DomException> {
+        self.get_all_with_key_and_limit(&key.into(), limit)
+    }
+
     /// Count the number of documents in the index/object store
     fn count(&self) -> Result<CountFuture, DomException>;
 
