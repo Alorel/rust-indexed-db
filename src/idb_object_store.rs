@@ -1,16 +1,14 @@
 //! Object store-related code
 
-use accessory::Accessors;
-use wasm_bindgen::{prelude::*, JsCast};
-use web_sys::DomException;
-
-pub use idb_object_store_parameters::*;
-
 #[cfg(feature = "indices")]
 use {
     crate::{idb_index::IdbIndex, idb_key_path::IdbKeyPath},
     web_sys::IdbIndexParameters,
 };
+use accessory::Accessors;
+pub use idb_object_store_parameters::*;
+use wasm_bindgen::{JsCast, prelude::*};
+use web_sys::DomException;
 
 use crate::idb_database::IdbDatabase;
 use crate::idb_transaction::IdbTransaction;
@@ -33,20 +31,9 @@ pub struct IdbObjectStore<'a> {
 }
 
 impl<'a> IdbObjectStore<'a> {
-    /// Clear all the documents in the object store
+    /// Remove all the documents from the object store
     pub fn clear(&self) -> Result<VoidRequest, DomException> {
         Ok(VoidRequest::new(self.inner.clear()?))
-    }
-
-    /// Clone and store the value on the object store. Throws if the computed key already exists.
-    pub fn add_val<V: JsCast>(&self, val: &V) -> Result<VoidRequest, DomException> {
-        Ok(VoidRequest::new(self.inner.add(val.unchecked_ref())?))
-    }
-
-    /// Clone and store the value on the object store. Throws if the computed key already exists.
-    #[inline]
-    pub fn add_val_owned<V: Into<JsValue>>(&self, val: V) -> Result<VoidRequest, DomException> {
-        self.add_val(&val.into())
     }
 
     /// Clone and store the value in the object store at the given key. Throws if the key already
@@ -106,13 +93,6 @@ impl<'a> IdbObjectStore<'a> {
         V: JsCast,
     {
         self.put_key_val(&key.into(), val)
-    }
-
-    /// The value of the auto increment flag for this object store.
-    #[inline]
-    #[must_use]
-    pub fn auto_increment(&self) -> bool {
-        self.inner.auto_increment()
     }
 
     #[inline]
@@ -208,9 +188,11 @@ impl_query_source!(IdbObjectStore<'_>);
 
 #[cfg(test)]
 pub mod test {
+    use web_sys::IdbTransactionMode as TxMode;
+
     use crate::idb_query_source::IdbQuerySource;
     use crate::internal_utils::open_any_db;
-    use web_sys::IdbTransactionMode as TxMode;
+
     test_mod_init!();
 
     test_case!(async delete => {
@@ -272,8 +254,10 @@ pub mod test {
 
     #[cfg(feature = "indices")]
     pub mod indices {
-        use crate::prelude::*;
         use uuid::Uuid;
+
+        use crate::prelude::*;
+
         test_mod_init!();
 
         #[inline]

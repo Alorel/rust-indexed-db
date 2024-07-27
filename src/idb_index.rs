@@ -1,8 +1,9 @@
 //! Index-related code
 
-use crate::idb_object_store::IdbObjectStore;
 use accessory::Accessors;
 use fancy_constructor::new;
+
+use crate::idb_object_store::IdbObjectStore;
 
 /// A wrapper around an [`IndexedDB` index](web_sys::IdbIndex)
 #[derive(Debug, new, Accessors)]

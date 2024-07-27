@@ -1,7 +1,14 @@
+[workspace]
+resolver = "2"
+members = [
+  ".",
+  "internal_macros",
+]
+
 [package]
 name = "indexed_db_futures"
 version = "0.5.0"
-authors = ["Arturas Molcanovas <amolc@protonmail.com>"]
+authors = ["Arturas Molcanovas <amolc@pm.me>"]
 edition = "2021"
 rust-version = "1.64.0"
 license = "MIT"
@@ -10,72 +17,111 @@ repository = "https://github.com/Alorel/rust-indexed-db"
 keywords = ["wasm", "indexeddb", "future", "webassembly", "idb"]
 categories = ["asynchronous", "database", "wasm", "web-programming"]
 include = [
-    "src/",
-    "Cargo.toml",
-    "README.md"
-]
-
-[package.metadata.docs.rs]
-all-features = true
-rustdoc-args = [
-    "--cfg",
-    "doc_cfg",
+  "src/",
+  "Cargo.toml",
+  "README.md"
 ]
 
 [features]
-default = [
-    "cursors",
-    "indices"
-]
 cursors = [
-    "web-sys/IdbCursor",
-    "web-sys/IdbCursorWithValue",
-    "web-sys/IdbCursorDirection"
+  "web-sys/IdbCursor",
+  "web-sys/IdbCursorWithValue",
+  "web-sys/IdbCursorDirection",
+]
+dates = [
+  "dep:web-time",
 ]
 indices = [
-    "web-sys/IdbIndex",
-    "web-sys/IdbIndexParameters"
+  "web-sys/IdbIndex",
+  "web-sys/IdbIndexParameters",
 ]
-nightly = []
+list-databases = []
+serde = [
+  "dep:serde",
+  "dep:serde-wasm-bindgen",
+  "web-time/serde",
+]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [lib]
 crate-type = ["lib"]
 
-[dev-dependencies]
-wasm-bindgen-test = "0.3.42"
-
-[dependencies]
-accessory = "1"
+[workspace.dependencies]
+accessory = "1.3.1"
 cfg-if = "1"
 delegate-display = "2"
+derive_more = { version = ">=1.0.0-beta.6, <2.0.0", default-features = false }
 fancy_constructor = "1.2"
+#futures = {version = "0.3.30", features = ["std"], default-features = false}
 js-sys = "0.3.64"
-uuid = {version = "1.8", features = ["v4", "js"]}
+macroific = "1.3.1"
+marker_trait = "1"
+sealed = "0.5"
+serde = "1"
+serde-wasm-bindgen = "0.6"
+thiserror = "1"
+tokio = { version = "1.30", default-features = false }
+uuid = "1.8"
 wasm-bindgen = "0.2.92"
 wasm-bindgen-futures = "0.4"
+wasm-bindgen-test = "0.3.42"
+web-time = "1.1"
+web-sys = "0.3.64"
+
+proc-macro2 = "1"
+quote = "1"
+syn = "2"
+
+[dependencies]
+accessory = { workspace = true }
+cfg-if = { workspace = true }
+delegate-display = { workspace = true }
+derive_more = { workspace = true, features = ["from"], default-features = false }
+fancy_constructor = { workspace = true }
+js-sys = { workspace = true }
+marker_trait = { workspace = true }
+sealed = { workspace = true }
+serde = { workspace = true, optional = true }
+serde-wasm-bindgen = { workspace = true, optional = true }
+thiserror = { workspace = true }
+tokio = { workspace = true, features = ["sync"], default-features = false }
+wasm-bindgen = { workspace = true }
+wasm-bindgen-futures = { workspace = true }
+web-time = { workspace = true, optional = true }
+
+[dependencies.internal_macros]
+version = "1"
+package = "indexed_db_futures_macros_internal"
+path = "internal_macros"
 
 [dependencies.web-sys]
-version = "0.3.64"
+workspace = true
 features = [
-    "DomException",
-    "DomStringList",
-    "Event",
-    "EventTarget",
-    "IdbDatabase",
-    "IdbFactory",
-    "IdbObjectStore",
-    "IdbObjectStoreParameters",
-    "IdbOpenDbRequest",
-    "IdbKeyRange",
-    "IdbRequest",
-    "IdbRequestReadyState",
-    "IdbTransaction",
-    "IdbTransactionMode",
-    "IdbVersionChangeEvent",
-    "Window",
-    "WorkerGlobalScope",
+  "DomException",
+  "DomStringList",
+  "Event",
+  "EventTarget",
+  "IdbDatabase",
+  "IdbFactory",
+  "IdbObjectStore",
+  "IdbObjectStoreParameters",
+  "IdbOpenDbRequest",
+  "IdbKeyRange",
+  "IdbRequest",
+  "IdbTransaction",
+  "IdbTransactionMode",
+  "IdbVersionChangeEvent",
+  "Window",
+  "WorkerGlobalScope",
 ]
 
+[dev-dependencies]
+wasm-bindgen-test = { workspace = true }
+uuid = { workspace = true, features = ["v4", "js"] }
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "doc_cfg"]
+
 [lints.rust]
-unexpected_cfgs = { level = "deny", check-cfg = ['cfg(doc_cfg)'] }
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(doc_cfg)'] }

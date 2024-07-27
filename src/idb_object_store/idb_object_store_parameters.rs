@@ -1,7 +1,8 @@
-use crate::idb_key_path::IdbKeyPath;
 use delegate_display::DelegateDebug;
 use fancy_constructor::new;
 use web_sys::IdbObjectStoreParameters as Base;
+
+use crate::idb_key_path::IdbKeyPath;
 
 /// Wrapper for [`IdbObjectStore`](crate::idb_object_store::IdbObjectStore) optional parameters
 #[derive(DelegateDebug, Clone, new)]

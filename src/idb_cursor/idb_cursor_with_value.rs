@@ -1,8 +1,8 @@
+use std::ops::Deref;
+
 use accessory::Accessors;
 use delegate_display::DelegateDebug;
 use fancy_constructor::new;
-use std::ops::Deref;
-
 use wasm_bindgen::prelude::*;
 use web_sys::DomException;
 

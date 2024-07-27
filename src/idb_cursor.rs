@@ -34,15 +34,14 @@
 //         Ok(())
 //     }
 
-use accessory::Accessors;
-use fancy_constructor::new;
 use std::future::Future;
 use std::rc::Rc;
 
-use wasm_bindgen::{prelude::*, JsCast};
-use web_sys::{DomException, IdbCursorDirection};
-
+use accessory::Accessors;
+use fancy_constructor::new;
 pub use idb_cursor_with_value::*;
+use wasm_bindgen::{JsCast, prelude::*};
+use web_sys::{DomException, IdbCursorDirection};
 
 use crate::idb_query_source::IdbQuerySource;
 use crate::internal_utils::optional_jsvalue_undefined;

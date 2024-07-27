@@ -1,4 +1,4 @@
-use wasm_bindgen::{prelude::*, JsCast};
+use wasm_bindgen::{JsCast, prelude::*};
 use web_sys::DomException;
 
 use crate::idb_key_path::IdbKeyPath;
@@ -9,25 +9,9 @@ use crate::request::{IdbCursorFuture, IdbCursorWithValueFuture};
 /// Code shared between [indices](crate::idb_index::IdbIndex) and
 /// [object stores](crate::idb_object_store::IdbObjectStore)
 pub trait IdbQuerySource: Sized {
-    /// Get the index/object store name
-    fn name(&self) -> String;
-
-    /// Set the index/object store name
-    fn set_name(&self, name: &str);
-
-    /// Get the index/object store key path. Returns `None` if the index isn't auto-populated.
-    fn key_path(&self) -> Option<IdbKeyPath>;
-
     /// Find either the value in the referenced object store that corresponds to the given key or
     /// the first corresponding value, if key is an [`IDBKeyRange`](web_sys::IdbKeyRange).
     fn get<K: JsCast>(&self, key: &K) -> Result<OptionalJsValueFuture, DomException>;
-
-    /// Find either the value in the referenced object store that corresponds to the given key or
-    /// the first corresponding value, if key is an [`IDBKeyRange`](web_sys::IdbKeyRange).
-    #[inline]
-    fn get_owned<K: Into<JsValue>>(&self, key: K) -> Result<OptionalJsValueFuture, DomException> {
-        self.get(&key.into())
-    }
 
     /// Get all values in the index/object store
     fn get_all(&self) -> Result<JsCastRequestFuture<js_sys::Array>, DomException>;
