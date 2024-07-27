@@ -1,0 +1,60 @@
+name: Unit test
+on:
+  workflow_call:
+    inputs:
+      toolchain:
+        description: Rust version
+        default: stable
+        type: string
+      os:
+        description: OS to run on
+        default: ubuntu-latest
+        type: string
+      flags:
+        description: cli args
+        type: string
+
+permissions:
+  contents: read
+
+env:
+  CARGO_INCREMENTAL: 0
+  RUSTFLAGS: --deny warnings
+
+jobs:
+  test:
+    name: Test with ${{ inputs.flags || 'no flags' }} on ${{ inputs.os }}, ${{ inputs.toolchain }}
+    runs-on: ${{ inputs.os }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Init toolchain
+        uses: alorel-actions/cargo/init@v1
+        with:
+          toolchain: ${{ inputs.toolchain }}
+          cache-prefix: test
+          cache-suffix: ${{inputs.flags}}
+          targets: wasm32-unknown-unknown
+          local: true
+
+      - name: Build
+        run: cargo build --target wasm32-unknown-unknown --locked ${{ inputs.flags }}
+
+      - name: Install wasm-pack
+        uses: alorel-actions/cargo-global-dep@v1
+        with:
+          name: wasm-pack
+          version: 0.13.0
+
+      - name: Test (Chrome)
+        if: ${{ runner.os != 'macOS' }}
+        run: wasm-pack test --chrome --headless --locked ${{ inputs.flags }}
+
+      - name: Test (Firefox)
+        if: ${{ runner.os != 'macOS' }}
+        run: wasm-pack test --firefox --headless --locked ${{ inputs.flags }}
+
+      - name: Test (Safari)
+        if: ${{ runner.os == 'macOS' }}
+        run: wasm-pack test --safari --headless --locked ${{ inputs.flags }}

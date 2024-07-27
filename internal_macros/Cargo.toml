@@ -1,0 +1,25 @@
+[package]
+name = "indexed_db_futures_macros_internal"
+version = "1.0.0"
+edition = "2021"
+rust-version = "1.75.0"
+license = "MIT"
+authors = ["Alorel <amolc@pm.me>"]
+description = "Internal macros for the `indexed_db_futures` crate"
+keywords = []
+categories = []
+repository = "https://github.com/Alorel/rust-indexed-db"
+include = [
+  "src/",
+  "Cargo.toml",
+  "README.md"
+]
+
+[lib]
+proc-macro = true
+
+[dependencies]
+macroific = { workspace = true, features = ["attr_parse", "attributed", "generic-impl", "module-prefix"] }
+proc-macro2 = { workspace = true }
+quote = { workspace = true }
+syn = { workspace = true, features = ["full"] }

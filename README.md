@@ -1,87 +1,90 @@
-# Indexed DB Futures
-
-<!-- cargo-rdme start -->
-
 Wraps the [web_sys](https://crates.io/crates/web_sys) Indexed DB API in a Future-based API and
-removes the pain of dealing with Javascript callbacks in Rust.
+removes the pain of dealing with JS callbacks or `JSValue` in Rust.
 
 [![master CI badge](https://github.com/Alorel/rust-indexed-db/actions/workflows/test.yml/badge.svg)](https://github.com/Alorel/rust-indexed-db/actions/workflows/test.yml)
 [![crates.io badge](https://img.shields.io/crates/v/indexed_db_futures)](https://crates.io/crates/indexed_db_futures)
 [![docs.rs badge](https://img.shields.io/docsrs/indexed_db_futures?label=docs.rs)](https://docs.rs/indexed_db_futures)
 [![dependencies badge](https://img.shields.io/librariesio/release/cargo/indexed_db_futures)](https://libraries.io/cargo/indexed_db_futures)
 
-### Overall API design
+Goals & features:
 
-In most cases API methods will return a `Result` containing a wrapped
-`IdbRequest` that implements `IntoFuture`, such as
-`VoidRequest`, or, when more appropriate, the `Future`
-directly, e.g. `CountFuture`.
-
-The key difference between a wrapped Request and Future is that Requests don't have _any_ event
-listeners attached, which aims to make quickfire operations such as inserting several records
-into an `IdbObjectStore` a little bit more efficient.
-
-### Features
-
-The library can ship without cursor or index support for apps that just need a simple key-value
-store akin to `localStorage`.
-
-- `cursors` - Enable cursor support
-- `indices` - Enable index support
-- `nightly` - Use unsafe nightly features where appropriate, such as [`unwrap_unchecked`](Option::unwrap_unchecked).
-- `default`:
-   - `cursors`
-   - `indices`
-
-### Examples
-
-#### Connecting to a DB and doing basic CRUD
-
-Variable types included for clarity.
+- **Shield you from having to interact with [`web_sys`](https://crates.io/crates/web-sys) or
+  [`js_sys`](https://crates.io/crates/js-sys) APIs** - this should feel like a native Rust API.
+- **Integrate with [`serde`](https://crates.io/crates/serde), but don't require it** - as a rule of thumb, you'll use
+  `serde`-serialisable types when working with JS objects & bypass `serde` for Javascript primitives.
+- **Implement [`Stream`](https://docs.rs/futures/0.3.31/futures/prelude/trait.Stream.html) where applicable** - cursors
+  and key cursors have this at the time of writing.
+- **Implement a more Rust-oriented API** - for example, transactions will roll back by default unless explicitly
+  committed to allow you to use `?`s.
 
 ```rust
+use indexed_db_futures::database::Database;
 use indexed_db_futures::prelude::*;
+use indexed_db_futures::transaction::TransactionMode;
 
-pub async fn example() -> Result<(), DomException> {
-    // Open my_db v1
-    let mut db_req: OpenDbRequest = IdbDatabase::open_u32("my_db", 1)?;
-    db_req.set_on_upgrade_needed(Some(|evt: &IdbVersionChangeEvent| -> Result<(), JsValue> {
-        // Check if the object store exists; create it if it doesn't
-        if let None = evt.db().object_store_names().find(|n| n == "my_store") {
-            evt.db().create_object_store("my_store")?;
+#[derive(serde::Serialize, serde::Deserialize)]
+struct MySerdeType(u8, String);
+
+async fn main() -> indexed_db_futures::OpenDbResult<()> {
+    let db = Database::open("my_db")
+        .with_version(2u8)
+        .with_on_upgrade_needed(|event, db| {
+            match (event.old_version(), event.new_version()) {
+                (0.0, Some(1.0)) => {
+                    db.create_object_store("my_store")
+                        .with_auto_increment(true)
+                        .build()?;
+                }
+                (prev, Some(2.0)) => {
+                    if prev == 1.0 {
+                        let _ = db.delete_object_store("my_store");
+                    }
+
+                    db.create_object_store("my_other_store").build()?;
+                }
+                _ => {}
+            }
+
+            Ok(())
+        })
+        .await?;
+
+    // Populate some data
+    let transaction = db
+        .transaction("my_other_store")
+        .with_mode(TransactionMode::Readwrite)
+        .build()?;
+
+    let store = transaction.object_store("my_other_store")?;
+
+    store
+        .put("a primitive value that doesn't need serde")
+        .await?;
+
+    // awaiting individual requests is optional - they still go out
+    store.put(MySerdeType(10, "foos".into())).serde()?;
+
+    // Unlike JS, transactions ROLL BACK INSTEAD OF COMMITTING BY DEFAULT
+    transaction.commit().await?;
+
+    // Read some data
+    let transaction = db.transaction("my_other_store").build()?;
+    let store = transaction.object_store("my_other_store")?;
+    let Some(mut cursor) = store.open_cursor().await? else {
+        // `None` is returned if the cursor is empty
+        return Ok(());
+    };
+
+    loop {
+        match cursor.next_record_ser::<MySerdeType>().await {
+            Ok(Some(record)) => handle_record(record),
+            Ok(None) => break,
+            Err(e) => handle_error(e),
         }
-        Ok(())
-    }));
-
-    let db: IdbDatabase = db_req.await?;
-
-    // Insert/overwrite a record
-    let tx: IdbTransaction = db
-      .transaction_on_one_with_mode("my_store", IdbTransactionMode::Readwrite)?;
-    let store: IdbObjectStore = tx.object_store("my_store")?;
-
-    let value_to_put: JsValue = get_some_js_value();
-    store.put_key_val_owned("my_key", &value_to_put)?;
-
-    // IDBTransactions can have an Error or an Abort event; into_result() turns both into a
-    // DOMException
-    tx.await.into_result()?;
-
-    // Delete a record
-    let tx = db.transaction_on_one_with_mode("my_store", IdbTransactionMode::Readwrite)?;
-    let store = tx.object_store("my_store")?;
-    store.delete_owned("my_key")?;
-    tx.await.into_result()?;
-
-    // Get a record
-    let tx = db.transaction_on_one("my_store")?;
-    let store = tx.object_store("my_store")?;
-
-    let value: Option<JsValue> = store.get_owned("my_key")?.await?;
-    use_value(value);
+    }
 
     Ok(())
 }
 ```
 
-<!-- cargo-rdme end -->
+Head over to the docs for a proper introduction!
