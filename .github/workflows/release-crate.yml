@@ -1,0 +1,28 @@
+name: Release (crates.io)
+concurrency: release-crate
+on:
+  push:
+    tags:
+      - v*
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    name: Release (crates.io)
+    runs-on: ubuntu-latest
+    environment: crates-io
+    env:
+      CARGO_INCREMENTAL: 0
+    steps:
+      - uses: actions/checkout@v4
+        name: Checkout
+
+      - name: Init toolchain
+        uses: alorel-actions/cargo/init@v1
+        with:
+          cache-prefix: release
+
+      - name: Publish crate
+        run: cargo publish --locked --token ${{ secrets.CRATES_IO_TOKEN }}

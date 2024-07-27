@@ -1,5 +1,6 @@
 name: Test
 on:
+  workflow_call: { }
   push:
     branches:
       - master
@@ -29,6 +30,131 @@ env:
   RUSTFLAGS: --deny warnings
 
 jobs:
-  test:
-    name: Test
-    uses: ./.github/workflows/_test.yml
+  doc:
+    name: Doc build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Init toolchain
+        uses: alorel-actions/cargo/init@v1
+        id: toolchain
+        with:
+          toolchain: nightly-2024-10-18
+          cache-prefix: doc
+          local: true
+
+      - name: Doc
+        run: cargo doc --workspace --all-features --no-deps
+        env:
+          RUSTDOCFLAGS: --cfg doc_cfg --deny warnings
+
+      - name: Cleanup
+        run: rm -rf target/doc
+
+  doctest:
+    name: Doc test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Init toolchain
+        uses: alorel-actions/cargo/init@v1
+        id: toolchain
+        with:
+          cache-prefix: doctest
+          local: true
+
+      - name: Test
+        run: cargo test --workspace --doc --future-incompat-report --all-features
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Init toolchain
+        uses: alorel-actions/cargo/init@v1
+        id: toolchain
+        with:
+          components: rustfmt,clippy
+          cache-prefix: lint
+          local: true
+
+      - name: Fmt
+        run: cargo fmt --check
+
+      - name: Clippy
+        run: cargo clippy --workspace --tests --all-features --locked --no-deps
+
+  environment:
+    name: Environment test for ${{ matrix.toolchain }} on ${{ matrix.os }}
+    uses: ./.github/workflows/unit-test.yml
+    with:
+      toolchain: ${{ matrix.toolchain }}
+      os: ${{ matrix.os }}
+      flags: --all-features
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - toolchain: nightly-2024-10-18
+            os: ubuntu-latest
+          - toolchain: 1.75.0
+            os: ubuntu-latest
+          - toolchain: stable
+            os: ubuntu-latest
+          - toolchain: stable
+            os: macos-latest
+
+  feature:
+    name: Feature test for ${{ matrix.flags || 'no flags' }}
+    uses: ./.github/workflows/unit-test.yml
+    with:
+      flags: ${{ matrix.flags }}
+    strategy:
+      fail-fast: false
+      matrix:
+        flags:
+          - ''
+          - --features cursors
+          - --features dates
+          - --features indices
+          - --features list-databases
+          - --features serde
+          - --features "cursors streams"
+          - --features switch
+          - --features typed-arrays
+          - --features "typed-arrays serde"
+          - --features "cursors streams serde"
+          - --features "indices serde"
+          - --features "indices cursors"
+          - --features "indices cursors serde"
+          - --features "indices cursors streams"
+          - --features "indices cursors streams serde"
+          - --features "dates serde"
+          - --features "cursors serde"
+
+  done:
+    name: All tests
+    runs-on: ubuntu-latest
+    needs:
+      - doc
+      - lint
+      - feature
+      - doctest
+      - environment
+    steps:
+      - uses: actions/checkout@v4
+        name: Checkout
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Generate changelog
+        id: changelog
+        uses: ./.github/actions/changelog

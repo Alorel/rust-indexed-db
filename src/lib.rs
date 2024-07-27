@@ -1,336 +1,317 @@
-//! Wraps the [web_sys](https://crates.io/crates/web_sys) Indexed DB API in a Future-based API and
-//! removes the pain of dealing with Javascript callbacks in Rust.
+//! Wraps the [web_sys](https://docs.rs/web_sys) Indexed DB API in a Future-based API and
+//! removes the pain of dealing with JS callbacks or `JSValue` in Rust.
 //!
 //! [![master CI badge](https://github.com/Alorel/rust-indexed-db/actions/workflows/test.yml/badge.svg)](https://github.com/Alorel/rust-indexed-db/actions/workflows/test.yml)
 //! [![crates.io badge](https://img.shields.io/crates/v/indexed_db_futures)](https://crates.io/crates/indexed_db_futures)
 //! [![docs.rs badge](https://img.shields.io/docsrs/indexed_db_futures?label=docs.rs)](https://docs.rs/indexed_db_futures)
 //! [![dependencies badge](https://img.shields.io/librariesio/release/cargo/indexed_db_futures)](https://libraries.io/cargo/indexed_db_futures)
 //!
-//! ## Overall API design
+
+//! # Overall API design
 //!
-//! In most cases API methods will return a [`Result`](::std::result::Result) containing a wrapped
-//! [`IdbRequest`](crate::web_sys::IdbRequest) that implements [`IntoFuture`](::std::future::IntoFuture), such as
-//! [`VoidRequest`](crate::request::VoidRequest), or, when more appropriate, the [`Future`](::std::future::Future)
-//! directly, e.g. [`CountFuture`](crate::request::CountFuture).
+//! This library implements the same structs and methods as the JavaScript API - there should be no learning curve
+//! involved if you're familiar with it.
 //!
-//! The key difference between a wrapped Request and Future is that Requests don't have _any_ event
-//! listeners attached, which aims to make quickfire operations such as inserting several records
-//! into an [`IdbObjectStore`](crate::idb_object_store::IdbObjectStore) a little bit more efficient.
+//! ## Primitives
 //!
-//! ## Features
+//! In the context of this library, primitives refer to types that would be considered scalar primitives in JavaScript
+//! (bar some feature-flagged exceptions) and are converted using the [`TryToJs`](primitive::TryToJs) &
+//! [`TryFromJs`](primitive::TryFromJs) traits. They are meant to be quickly derivable from
+//! [`JsValue`](wasm_bindgen::JsValue), e.g. `String` is easily derivable via
+//! [`JsValue::as_string`](wasm_bindgen::JsValue::as_string).
 //!
-//! The library can ship without cursor or index support for apps that just need a simple key-value
-//! store akin to `localStorage`.
+//! ## Builders
 //!
-//! - `cursors` - Enable cursor support
-//! - `indices` - Enable index support
-//! - `nightly` - Use unsafe nightly features where appropriate, such as [`unwrap_unchecked`](Option::unwrap_unchecked).
-//! - `default`:
-//!    - `cursors`
-//!    - `indices`
+//! Most API calls are constructed using builders which, in turn, get built using one of the following traits:
 //!
-//! ## Examples
+//! - [`BuildPrimitive`] - implemented for requests use primitive serialisation.
+//! - [`BuildSerde`] - implemented for requests that use [`serde`](::serde) serialisation.
+//! - [`Build`] - implemented for requests that aren't `serde` _or_ primitive-serialisable (e.g. creating an index).
+//!   Implemented automatically for any type that implements [`BuildPrimitive`]. As a convenience method, types that
+//!   implement [`Build`] or [`BuildPrimitive`] also implement [`IntoFuture`](std::future::IntoFuture).
 //!
-//! ### Connecting to a DB and doing basic CRUD
+//! Note that API requests go out immediately after being built, not after being `await`ed.
+
+//! # Transactions default to rolling back
 //!
-//! Variable types included for clarity.
+//! ❗ Unlike Javascript, transactions will roll back by default instead of committing - this design choice was made to
+//! allow code to use `?`s. There is one browser compatibility-related caveat, however - see comment on
+//! [`Transaction::abort`](transaction::Transaction::abort) for more details.
 //!
-//! ```rust
-//! use indexed_db_futures::prelude::*;
-//!# use web_sys::DomException;
-//!# use wasm_bindgen::prelude::*;
-//!#
-//!# fn use_value(_v: Option<JsValue>) {}
-//!# fn get_some_js_value() -> JsValue { JsValue::UNDEFINED }
+
+//! # Multi-threaded executor
 //!
-//! pub async fn example() -> Result<(), DomException> {
-//!     // Open my_db v1
-//!     let mut db_req: OpenDbRequest = IdbDatabase::open_u32("my_db", 1)?;
-//!     db_req.set_on_upgrade_needed(Some(|evt: &IdbVersionChangeEvent| -> Result<(), JsValue> {
-//!         // Check if the object store exists; create it if it doesn't
-//!         if let None = evt.db().object_store_names().find(|n| n == "my_store") {
-//!             evt.db().create_object_store("my_store")?;
-//!         }
-//!         Ok(())
-//!     }));
+//! You will likely run into issues if your app is compiled with `#[cfg(target_feature = "atomics")]` as reported in
+//! [#33](https://github.com/Alorel/rust-indexed-db/issues/33).
 //!
-//!     let db: IdbDatabase = db_req.await?;
+//! Transactions auto-commit on `JavasScript`'s end on the next tick of the event loop if there are no outstanding
+//! requests active; this isn't a problem in the default single-threaded executor, but, in a multi-threaded environment,
+//! `wasm-bindgen-futures` needs to schedule our closures on the next tick as well which causes transactions to
+//! prematurely auto-commit.
 //!
-//!     // Insert/overwrite a record
-//!     let tx: IdbTransaction = db
-//!       .transaction_on_one_with_mode("my_store", IdbTransactionMode::Readwrite)?;
-//!     let store: IdbObjectStore = tx.object_store("my_store")?;
+//! As a workaround, you can try only `awaiting` individual requests after committing your transaction (requests go out
+//! after being built, not after being polled).
 //!
-//!     let value_to_put: JsValue = get_some_js_value();
-//!     store.put_key_val_owned("my_key", &value_to_put)?;
-//!
-//!     // IDBTransactions can have an Error or an Abort event; into_result() turns both into a
-//!     // DOMException
-//!     tx.await.into_result()?;
-//!
-//!     // Delete a record
-//!     let tx = db.transaction_on_one_with_mode("my_store", IdbTransactionMode::Readwrite)?;
-//!     let store = tx.object_store("my_store")?;
-//!     store.delete_owned("my_key")?;
-//!     tx.await.into_result()?;
-//!
-//!     // Get a record
-//!     let tx = db.transaction_on_one("my_store")?;
-//!     let store = tx.object_store("my_store")?;
-//!
-//!     let value: Option<JsValue> = store.get_owned("my_key")?.await?;
-//!     use_value(value);
-//!
-//!     Ok(())
-//! }
 //! ```
+//! # use indexed_db_futures::prelude::*;
+//! # use indexed_db_futures::transaction::TransactionMode;
+//! #
+//! # async fn example(db: indexed_db_futures::database::Database) -> indexed_db_futures::Result<()> {
+//! let transaction = db.transaction("my_store").with_mode(TransactionMode::Readwrite).build()?;
+//! let object_store = transaction.object_store("my_store")?;
+//!
+//! let req1 = object_store.add("foo").primitive()?;
+//! let req2 = object_store.add("bar").primitive()?;
+//!
+//! transaction.commit().await?;
+//!
+//! req1.await?;
+//! req2.await?;
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! Alternatively, you can check out the [`indexed_db`](https://crates.io/crates/indexed_db) crate which explicitly
+//! focuses on multi-threaded support at the cost of ergonomics.
+//!
+
+//! # Examples
+//!
+//! ## Opening a database & making some schema changes
+//!
+//! ```
+//! use indexed_db_futures::database::Database;
+//! use indexed_db_futures::prelude::*;
+//! use indexed_db_futures::transaction::TransactionMode;
+//!
+//! # async fn example() -> indexed_db_futures::OpenDbResult<()> {
+//! # #[allow(dead_code)]
+//! let db = Database::open("my_db")
+//!     .with_version(2u8)
+//!     .with_on_blocked(|event| {
+//!       log::debug!("DB upgrade blocked: {:?}", event);
+//!       Ok(())
+//!     })
+//!     .with_on_upgrade_needed_fut(|event, db| async move {
+//!         match (event.old_version(), event.new_version()) {
+//!             (0.0, Some(1.0)) => {
+//!                 db.create_object_store("my_store")
+//!                     .with_auto_increment(true)
+//!                     .build()?;
+//!             }
+//!             (prev, Some(2.0)) => {
+//!                 if prev == 1.0 {
+//!                     if let Err(e) = db.delete_object_store("my_store") {
+//!                       log::error!("Error deleting v1 object store: {}", e);
+//!                     }
+//!                 }
+//!
+//!                 // Create an object store and await its transaction before inserting data.
+//!                 db.create_object_store("my_other_store")
+//!                   .build()?
+//!                   .transaction()
+//!                   .on_done()?
+//!                   .await
+//!                   .into_result()?;
+//!
+//!                 //- Start a new transaction & add some data
+//!                 let tx = db.transaction("my_other_store")
+//!                   .with_mode(TransactionMode::Readwrite)
+//!                   .build()?;
+//!                 let store = tx.object_store("my_other_store")?;
+//!                 store.add("foo").await?;
+//!                 store.add("bar").await?;
+//!                 tx.commit().await?;
+//!             }
+//!             _ => {}
+//!         }
+//!
+//!         Ok(())
+//!     })
+//!     .await?;
+//! #    Ok(())
+//! # }
+//! ```
+//!
+//! ## Reading/writing with `serde`
+//!
+//! ```
+//! # use indexed_db_futures::object_store::ObjectStore;
+//! # use indexed_db_futures::prelude::*;
+//! # use serde::{Deserialize, Serialize};
+//! #
+//! #[derive(Serialize, Deserialize)]
+//! struct UserRef {
+//!   id: u32,
+//!   name: String,
+//! }
+//!
+//! # #[allow(dead_code)]
+//! # async fn example(object_store: ObjectStore<'_>) -> indexed_db_futures::Result<()> {
+//! object_store.put(UserRef { id: 1, name: "Bobby Tables".into() }).serde()?.await?;
+//! let user: Option<UserRef> = object_store.get(1u32).serde()?.await?;
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! # Iterating a cursor
+//!
+//! ```
+//! # use indexed_db_futures::object_store::ObjectStore;
+//! # use indexed_db_futures::prelude::*;
+//! #
+//! # #[allow(dead_code)]
+//! # async fn example(object_store: ObjectStore<'_>) -> indexed_db_futures::Result<()> {
+//! let Some(mut cursor) = object_store.open_cursor().await? else {
+//!   log::debug!("Cursor empty");
+//!   return Ok(());
+//! };
+//!
+//! // Retrieve the next record in the stream, expecting a String
+//! let next: Option<String> = cursor.next_record().await?;
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! # Iterating an index as a stream
+//!
+//! ```
+//! # use indexed_db_futures::object_store::ObjectStore;
+//! # use indexed_db_futures::prelude::*;
+//! # use serde::{Deserialize, Serialize};
+//! use futures::TryStreamExt;
+//! #
+//! # #[derive(Serialize, Deserialize)]
+//! # struct UserRef {
+//! #  id: u32,
+//! #  name: String,
+//! # }
+//!
+//! # #[allow(dead_code)]
+//! # async fn example(object_store: ObjectStore<'_>) -> indexed_db_futures::Result<()> {
+//! let index = object_store.index("my_index")?;
+//! let Some(cursor) = index.open_cursor().with_query(10u32..=100u32).serde()?.await? else {
+//!   log::debug!("Cursor empty");
+//!   return Ok(());
+//! };
+//! let stream = cursor.stream_ser::<UserRef>();
+//! let records = stream.try_collect::<Vec<_>>().await?;
+//! # Ok(())
+//! # }
+//! ```
+//!
+
+//! # Feature table
+//!
+//! | Feature | Description |
+//! |---------|-------------|
+//! | `cursors` | Enable opening IndexedDB [cursors](https://developer.mozilla.org/en-US/docs/Web/API/IDBCursor). |
+//! | `dates` | Enable [`SystemTime`](std::time::SystemTime) & [`Date`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date) handling. |
+//! | `indices` | Enable IndexedDB [indices](https://developer.mozilla.org/en-US/docs/Web/API/IDBIndex). |
+//! | `list-databases` | Enable getting a list of defined databases. |
+//! | `serde` | Enable [`serde`](::serde) integration. |
+//! | `streams` | Implement [`Stream`](::futures_core::Stream) where applicable. |
+//! | `switch` | Enable [switches](primitive::Switch2). |
+//! | `typed-arrays` | Enable [typed array](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/TypedArray) handling. |
+//! | `version-change` | Enable listening for [`versionchange`](https://developer.mozilla.org/en-US/docs/Web/API/IDBDatabase/versionchange_event) events. |
 
 #![deny(clippy::correctness, clippy::suspicious)]
-#![warn(clippy::complexity, clippy::perf, clippy::style, clippy::pedantic)]
-#![warn(missing_docs)]
-#![allow(
-    clippy::missing_errors_doc,
-    clippy::missing_panics_doc,
-    clippy::module_name_repetitions,
-    clippy::uninlined_format_args
+#![warn(
+    clippy::complexity,
+    clippy::perf,
+    clippy::style,
+    clippy::pedantic,
+    missing_docs
 )]
-#![allow(rustdoc::redundant_explicit_links)]
+#![allow(clippy::module_name_repetitions, clippy::wildcard_imports)]
 #![cfg_attr(doc_cfg, feature(doc_auto_cfg))]
 
-pub use js_sys;
-pub use web_sys;
+pub use build::*;
+pub use key_path::{KeyPath, KeyPathSeq};
+pub use key_range::KeyRange;
 
-pub use idb_database::*;
-pub use idb_key_path::*;
-pub use idb_query_source::*;
-
-#[cfg(test)]
-wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
-
-#[cfg(test)]
-macro_rules! test_mod_init {
-    () => {
-        #[allow(unused_imports)]
-        use {
-            super::*,
-            wasm_bindgen::{prelude::*, JsCast},
-            wasm_bindgen_test::*,
-        };
+/// `cfg_if` doesn't add appropriate tags in docs.rs
+macro_rules! iffeat {
+    (#[cfg(feature = $feat: literal)] $($stmt: item)+) => {
+        $(
+            #[cfg(feature = $feat)]
+            $stmt
+        )+
     };
 }
 
-#[cfg(test)]
-macro_rules! test_case {
-    ($name: ident => $body: block) => {
-        #[wasm_bindgen_test::wasm_bindgen_test]
-        fn $name() {
-            $body
-        }
-    };
-    (async $name: ident => $body: block) => {
-        #[wasm_bindgen_test::wasm_bindgen_test]
-        async fn $name() {
-            $body
-        }
-    };
-}
-
-macro_rules! impl_display_for_named {
-    ($for: ty) => {
-        impl std::fmt::Display for $for {
-            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                #[allow(unused_imports)]
-                use $crate::idb_query_source::IdbQuerySource;
-                f.write_str(&self.name())
-            }
-        }
-    };
-}
-
-macro_rules! impl_query_source {
-    ($for: ty) => {
-        impl_display_for_named!($for);
-
-        impl $crate::idb_query_source::IdbQuerySource for $for {
-            // Cursors
-            cfg_if::cfg_if! {
-                if #[cfg(feature = "cursors")] {
-                    fn open_cursor(
-                        &self,
-                    ) -> Result<$crate::request::IdbCursorWithValueFuture<Self>, web_sys::DomException>
-                    {
-                        let base = $crate::request::IdbCursorFuture::new(self.inner.open_cursor(), self)?;
-                        Ok($crate::request::IdbCursorWithValueFuture::new(base))
-                    }
-
-                    fn open_cursor_with_range_and_direction<K: wasm_bindgen::JsCast>(&self, range: &K, direction: web_sys::IdbCursorDirection) -> Result<$crate::request::IdbCursorWithValueFuture<Self>, web_sys::DomException> {
-                        #[allow(unused_imports)]
-                        use wasm_bindgen::JsCast;
-                        let base = self.inner.open_cursor_with_range_and_direction(range.unchecked_ref(), direction);
-                        let base = $crate::request::IdbCursorFuture::new(base, self)?;
-                        Ok($crate::request::IdbCursorWithValueFuture::new(base))
-                    }
-
-                    fn open_cursor_with_range<K: wasm_bindgen::JsCast>(&self, range: &K) -> Result<$crate::request::IdbCursorWithValueFuture<Self>, web_sys::DomException> {
-                        #[allow(unused_imports)]
-                        use wasm_bindgen::JsCast;
-                        let base = self.inner.open_cursor_with_range(range.unchecked_ref());
-                        let base = $crate::request::IdbCursorFuture::new(base, self)?;
-                        Ok($crate::request::IdbCursorWithValueFuture::new(base))
-                    }
-
-                    fn open_key_cursor(
-                        &self,
-                    ) -> Result<$crate::request::IdbCursorFuture<Self>, web_sys::DomException> {
-                        $crate::request::IdbCursorFuture::new(self.inner.open_key_cursor(), self)
-                    }
-
-                    fn open_key_cursor_with_range<K: wasm_bindgen::JsCast>(&self, range: &K) -> Result<$crate::request::IdbCursorFuture<Self>, web_sys::DomException> {
-                        let base = self.inner.open_key_cursor_with_range(range.unchecked_ref());
-                        $crate::request::IdbCursorFuture::new(base, self)
-                    }
-
-                    fn open_key_cursor_with_range_and_direction<K: wasm_bindgen::JsCast>(&self, range: &K, direction: web_sys::IdbCursorDirection) -> Result<$crate::request::IdbCursorFuture<Self>, web_sys::DomException> {
-                        let base = self.inner.open_key_cursor_with_range_and_direction(range.unchecked_ref(), direction);
-                        $crate::request::IdbCursorFuture::new(base, self)
-                    }
+macro_rules! fwd_cast_js {
+    (TryFromJs: $($ty: ty),+ $(,)?) => {
+        $(
+            impl $crate::primitive::TryFromJs for $ty {
+                fn from_js(js: ::wasm_bindgen::JsValue) -> Result<Self, $crate::error::SimpleValueError> {
+                    ::wasm_bindgen::JsCast::dyn_into(js).map_err($crate::error::SimpleValueError::DynCast)
                 }
             }
-
-            #[inline]
-            fn get<K: wasm_bindgen::JsCast>(
-                &self,
-                key: &K,
-            ) -> Result<$crate::request::OptionalJsValueFuture, web_sys::DomException> {
-                #[allow(unused_imports)]
-                use wasm_bindgen::JsCast;
-                $crate::request::OptionalJsValueFuture::new(self.inner.get(key.unchecked_ref()))
+        )+
+    };
+    (TryToJs: $($ty: ty),+ $(,)?) => {
+        $(
+            #[allow(unused_qualifications)]
+            impl $crate::primitive::try_to_js::TryToJs for $ty {
+                fn try_to_js(&self) -> $crate::Result<::wasm_bindgen::JsValue> {
+                    Ok(::wasm_bindgen::JsCast::unchecked_ref::<::wasm_bindgen::JsValue>(self).clone())
+                }
             }
-
-            #[inline]
-            fn get_all(
-                &self,
-            ) -> Result<$crate::request::JsCastRequestFuture<js_sys::Array>, web_sys::DomException>
-            {
-                $crate::request::JsCastRequestFuture::new(self.inner.get_all())
-            }
-
-            #[inline]
-            fn get_all_with_key<K: wasm_bindgen::JsCast>(
-                &self,
-                key: &K,
-            ) -> Result<$crate::request::JsCastRequestFuture<js_sys::Array>, web_sys::DomException>
-            {
-                #[allow(unused_imports)]
-                use wasm_bindgen::JsCast;
-                $crate::request::JsCastRequestFuture::new(self.inner.get_all_with_key(key.unchecked_ref()))
-            }
-
-            #[inline]
-            fn get_all_with_key_and_limit<K: wasm_bindgen::JsCast>(
-                &self,
-                key: &K,
-                limit: u32,
-            ) -> Result<$crate::request::JsCastRequestFuture<js_sys::Array>, web_sys::DomException>
-            {
-                #[allow(unused_imports)]
-                use wasm_bindgen::JsCast;
-                let base = self.inner.get_all_with_key_and_limit(key.unchecked_ref(), limit);
-                $crate::request::JsCastRequestFuture::new(base)
-            }
-
-            #[inline]
-            fn count(&self) -> Result<$crate::request::CountFuture, web_sys::DomException> {
-                $crate::request::CountFuture::new(self.inner.count())
-            }
-
-            #[inline]
-            fn key_path(&self) -> Option<$crate::idb_key_path::IdbKeyPath> {
-                $crate::idb_key_path::IdbKeyPath::try_from_js(self.inner.key_path())
-            }
-
-            #[inline]
-            fn count_with_key<K: wasm_bindgen::JsCast>(
-                &self,
-                key: &K,
-            ) -> Result<$crate::request::CountFuture, web_sys::DomException> {
-                #[allow(unused_imports)]
-                use wasm_bindgen::JsCast;
-                $crate::request::CountFuture::new(self.inner.count_with_key(key.unchecked_ref()))
-            }
-
-            #[inline]
-            fn name(&self) -> String {
-                self.inner.name()
-            }
-
-            #[inline]
-            fn set_name(&self, name: &str) {
-                self.inner.set_name(name);
-            }
-
-            #[inline]
-            fn get_key<K: wasm_bindgen::JsCast>(
-                &self,
-                key: &K,
-            ) -> Result<$crate::request::OptionalJsValueFuture, web_sys::DomException> {
-                #[allow(unused_imports)]
-                use wasm_bindgen::JsCast;
-                $crate::request::OptionalJsValueFuture::new(self.inner.get_key(key.unchecked_ref()))
-            }
-
-            #[inline]
-            fn get_all_keys(
-                &self,
-            ) -> Result<$crate::request::JsCastRequestFuture<js_sys::Array>, web_sys::DomException>
-            {
-                $crate::request::JsCastRequestFuture::new(self.inner.get_all_keys())
-            }
-
-            #[inline]
-            fn get_all_keys_with_key<K: wasm_bindgen::JsCast>(
-                &self,
-                key: &K,
-            ) -> Result<$crate::request::JsCastRequestFuture<js_sys::Array>, web_sys::DomException>
-            {
-                #[allow(unused_imports)]
-                use wasm_bindgen::JsCast;
-                $crate::request::JsCastRequestFuture::new(self.inner.get_all_keys_with_key(key.unchecked_ref()))
-            }
-
-            #[inline]
-            fn get_all_keys_with_key_and_limit<K: wasm_bindgen::JsCast>(
-                &self,
-                key: &K,
-                limit: u32,
-            ) -> Result<$crate::request::JsCastRequestFuture<js_sys::Array>, web_sys::DomException>
-            {
-                #[allow(unused_imports)]
-                use wasm_bindgen::JsCast;
-                $crate::request::JsCastRequestFuture::new(
-                    self.inner.get_all_keys_with_key_and_limit(key.unchecked_ref(), limit),
-                )
-            }
-        }
+        )+
+    };
+    ($($ty: ty),+ $(,)?) => {
+        fwd_cast_js!(TryFromJs: $($ty),+);
+        fwd_cast_js!(TryToJs: $($ty),+);
     };
 }
 
-mod idb_database;
-pub mod idb_object_store;
-mod idb_query_source;
-pub mod idb_transaction;
+#[allow(unused_macros)]
+macro_rules! log {
+    ($level: ident, $($arg:tt)+) => {
+        #[cfg(feature = "__unit-tests")]
+        ::log::log!(::log::Level::$level, $($arg)+);
+    };
+}
+
+pub mod database;
+pub mod error;
+pub mod future;
+pub mod iter;
+
+pub mod query_source;
+
+/// A [`Result`](std::result::Result) with an [`Error`](error::Error) as the error type.
+pub type Result<T> = std::result::Result<T, error::Error>;
+
+/// A [`Result`](std::result::Result) with an [`OpenDbError`](error::OpenDbError) as the error type.
+pub type OpenDbResult<T> = std::result::Result<T, error::OpenDbError>;
+
 mod internal_utils;
+mod key_path;
+mod key_range;
+pub mod object_store;
 pub mod prelude;
-pub mod request;
+pub mod primitive;
+pub mod transaction;
 
-pub(crate) mod dom_string_iterator;
+#[cfg(feature = "dates")]
+pub mod date;
+pub mod factory;
 
-#[cfg(feature = "indices")]
-mod idb_index;
-
-#[cfg(feature = "indices")]
-pub use idb_index::*;
+mod build;
+#[cfg(feature = "typed-arrays")]
+pub mod typed_array;
 
 #[cfg(feature = "cursors")]
-pub mod idb_cursor;
-mod idb_key_path;
+pub mod cursor;
+#[cfg(feature = "indices")]
+pub mod index;
+
+pub mod internals;
+
+iffeat! {
+    #[cfg(feature = "serde")]
+    mod serde;
+    pub use serde::{DeserialiseFromJs, SerialiseToJs};
+}

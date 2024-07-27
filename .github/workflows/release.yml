@@ -1,28 +1,24 @@
-name: Release
-concurrency: release
+name: Release (GitHub)
+concurrency: release-git
 on:
-  workflow_dispatch: {}
+  workflow_dispatch: { }
 
 permissions:
   contents: read
 
 env:
   CARGO_INCREMENTAL: 0
-  RUSTFLAGS: --deny warnings
 
 jobs:
-  test:
-    name: Test
-    uses: ./.github/workflows/_test.yml
-
-  release:
-    name: Release
-    needs:
-      - test
+  git:
+    name: Git release
     runs-on: ubuntu-latest
-    environment: crates-io
+    environment: github
     permissions:
       contents: write
+    outputs:
+      issues-closed: ${{ steps.changelog.outputs.issues-closed }}
+      version: ${{ steps.changelog.outputs.version }}
     steps:
       - uses: actions/checkout@v4
         name: Checkout
@@ -31,37 +27,44 @@ jobs:
           fetch-tags: true
           token: ${{ secrets.GH_TOKEN }}
 
-      - name: Parse
-        id: parse
-        uses: alorel-actions/semantic-release-lite@v0
-        with:
-          stay-at-zero: true
-          minor-types: |
-            feat: Features
-          patch-types: |
-            fix: Bug Fixes
-          trivial-types: |
-            chore: Maintenance
-            deps: Dependency updates
-            ci: CI & Build
-            build: CI & Build
-            refactor: Refactors
-            docs: Documentation
-            perf: Performance
+      - name: Git identity
+        uses: alorel-actions/git-ident@v1
 
-      - name: Prep release
-        if: ${{ steps.parse.outputs.should-release }}
-        id: prep
-        uses: ./.github/actions/prep-release
-        with:
-          release-type: ${{ steps.parse.outputs.release-type }}
-          version: ${{ steps.parse.outputs.next-version }}
+      - name: Generate changelog
+        id: changelog
+        uses: ./.github/actions/changelog
 
-      - name: Release
-        if: ${{ steps.prep.outputs.in-sync }}
-        uses: ./.github/actions/release
+      - name: Init toolchain
+        uses: alorel-actions/cargo/init@v1
         with:
-          version: ${{ steps.parse.outputs.next-version }}
-          changelog: ${{ steps.parse.outputs.changelog }}
-          issues-closed: ${{ steps.parse.outputs.issues-closed }}
-          crates-io-token: ${{ secrets.CRATES_IO_TOKEN }}
+          cache-prefix: release
+
+      - name: cargo-bump
+        uses: alorel-actions/cargo/bump@v1
+        with:
+          release-type: ${{ steps.changelog.outputs.release-type }}
+
+      - name: Git release
+        uses: alorel-actions/cargo/release-git@v1
+        with:
+          version: ${{ steps.changelog.outputs.version }}
+          changelog: ${{ steps.changelog.outputs.changelog }}
+
+  notify:
+    name: Notify closed issues
+    needs:
+      - git
+    if: ${{ needs.git.outputs.issues-closed }}
+    runs-on: ubuntu-latest
+    environment: github
+    permissions:
+      contents: write
+    steps:
+      - name: Notify
+        if: ${{ needs.git.outputs.issues-closed }}
+        uses: alorel-actions/semantic-release-lite/notify@v0
+        with:
+          tag: ${{ needs.git.outputs.version }}
+          issues: ${{ needs.git.outputs.issues-closed }}
+          allow-out-of-sync: true
+          gh-token: ${{ secrets.GH_TOKEN }}
