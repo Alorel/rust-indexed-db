@@ -1,5 +1,6 @@
 name: Test
 on:
+  workflow_call: { }
   push:
     branches:
       - master
@@ -29,6 +30,100 @@ env:
   RUSTFLAGS: --deny warnings
 
 jobs:
-  test:
-    name: Test
-    uses: ./.github/workflows/_test.yml
+  doc:
+    name: Doc build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Init toolchain
+        uses: alorel-actions/cargo/init@v1
+        id: toolchain
+        with:
+          cache-prefix: doc
+          local: true
+
+      - name: Doc
+        run: cargo doc --workspace --no-deps --locked
+
+      - name: Cleanup
+        run: rm -rf target/doc
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Init toolchain
+        uses: alorel-actions/cargo/init@v1
+        id: toolchain
+        with:
+          components: rustfmt,clippy
+          cache-prefix: lint
+          local: true
+
+      - name: Fmt
+        run: cargo fmt --check
+
+      - name: Clippy
+        run: cargo clippy --workspace --tests --all-features --locked --no-deps
+
+  unit:
+    name: Test on ${{ matrix.toolchain }} with ${{ matrix.flags || 'no features' }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        toolchain:
+          - nightly-2024-07-25
+          - stable
+          - 1.74.0
+        flags:
+          - ''
+          - --all-features
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Init toolchain
+        uses: alorel-actions/cargo/init@v1
+        with:
+          toolchain: ${{matrix.toolchain}}
+          cache-prefix: test
+          local: true
+
+      - name: Build
+        run: cargo build --locked ${{ matrix.flags }}
+
+      - name: Install wasm-pack
+        uses: alorel-actions/cargo-global-dep@v1
+        with:
+          name: wasm-pack
+          version: 0.13.0
+
+      - name: Test
+        run: wasm-pack test --headless --firefox --chrome --locked --package idb_test ${{ matrix.flags }}
+
+  done:
+    name: All tests
+    runs-on: ubuntu-latest
+    needs:
+      - doc
+      - lint
+      - unit
+    steps:
+      - uses: actions/checkout@v4
+        name: Checkout
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Generate changelog
+        id: changelog
+        uses: ./.github/actions/changelog
+
+      - name: Echo changelog
+        run: echo -e "${{ steps.changelog.outputs.changelog }}"
