@@ -1,6 +1,7 @@
 <component name="ProjectRunConfigurationManager">
   <configuration default="false" name="Build" type="CargoCommandRunConfiguration" factoryName="Cargo Command">
-    <option name="command" value="build --workspace --target wasm32-unknown-unknown --future-incompat-report" />
+    <option name="buildProfileId" value="dev" />
+    <option name="command" value="build --target wasm32-unknown-unknown --future-incompat-report --all-features" />
     <option name="workingDirectory" value="file://$PROJECT_DIR$" />
     <envs />
     <option name="emulateTerminal" value="true" />
