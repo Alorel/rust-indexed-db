@@ -1,81 +1,152 @@
+[workspace]
+resolver = "2"
+members = [
+  ".",
+  "internal_macros",
+]
+
 [package]
 name = "indexed_db_futures"
 version = "0.5.0"
-authors = ["Arturas Molcanovas <amolc@protonmail.com>"]
+authors = ["Arturas Molcanovas <amolc@pm.me>"]
 edition = "2021"
-rust-version = "1.64.0"
+rust-version = "1.75.0"
 license = "MIT"
 description = "Future bindings for IndexedDB via web_sys"
 repository = "https://github.com/Alorel/rust-indexed-db"
 keywords = ["wasm", "indexeddb", "future", "webassembly", "idb"]
 categories = ["asynchronous", "database", "wasm", "web-programming"]
 include = [
-    "src/",
-    "Cargo.toml",
-    "README.md"
-]
-
-[package.metadata.docs.rs]
-all-features = true
-rustdoc-args = [
-    "--cfg",
-    "doc_cfg",
+  "src/",
+  "Cargo.toml",
+  "README.md"
 ]
 
 [features]
-default = [
-    "cursors",
-    "indices"
-]
 cursors = [
-    "web-sys/IdbCursor",
-    "web-sys/IdbCursorWithValue",
-    "web-sys/IdbCursorDirection"
+  "web-sys/IdbCursor",
+  "web-sys/IdbCursorWithValue",
+  "web-sys/IdbCursorDirection",
+]
+dates = [
+  "dep:web-time",
+  "_serialise-deserialise-dyn",
 ]
 indices = [
-    "web-sys/IdbIndex",
-    "web-sys/IdbIndexParameters"
+  "web-sys/IdbIndex",
+  "web-sys/IdbIndexParameters",
 ]
-nightly = []
+list-databases = [
+  "dep:impartial-ord",
+]
+serde = [
+  "dep:serde",
+  "dep:serde-wasm-bindgen",
+  "smallvec/serde",
+  "web-time/serde",
+]
+streams = [
+  "dep:futures-core",
+]
+switch = []
+typed-arrays = []
+version-change = ["tokio/macros"]
+_serialise-deserialise-dyn = []
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [lib]
 crate-type = ["lib"]
 
-[dev-dependencies]
-wasm-bindgen-test = "0.3.42"
+[workspace.dependencies]
+accessory = { version = "2" }
+cfg-if = "1"
+console_log = "1"
+delegate-display = { version = "3" }
+derive_more = { version = "1", default-features = false }
+fancy_constructor = { version = "2" }
+futures = "0.3.30"
+futures-core = "0.3"
+impartial-ord = "1.0.6"
+js-sys = "0.3.72"
+log = "0.4.22"
+macroific = { version = "2" }
+rand = "0.8"
+sealed = "0.6"
+serde = "1"
+serde-wasm-bindgen = "0.6"
+smallvec = "1.13"
+thiserror = "1"
+tokio = { version = "1.30", default-features = false }
+uuid = "1.8"
+wasm-bindgen = "0.2.95"
+wasm-bindgen-futures = "0.4.45"
+wasm-bindgen-test = "0.3.45"
+web-time = "1.1"
+web-sys = "0.3.72"
+
+proc-macro2 = "1"
+quote = "1"
+syn = "2"
 
 [dependencies]
-accessory = "1"
-cfg-if = "1"
-delegate-display = "2"
-fancy_constructor = "1.2"
-js-sys = "0.3.64"
-uuid = {version = "1.8", features = ["v4", "js"]}
-wasm-bindgen = "0.2.92"
-wasm-bindgen-futures = "0.4"
+accessory = { workspace = true }
+cfg-if = { workspace = true }
+delegate-display = { workspace = true }
+derive_more = { workspace = true, features = ["as_ref", "from", "deref", "deref_mut", "into", "debug"], default-features = false }
+fancy_constructor = { workspace = true }
+futures-core = { workspace = true, optional = true }
+impartial-ord = { workspace = true, optional = true }
+js-sys = { workspace = true }
+sealed = { workspace = true }
+serde = { workspace = true, optional = true }
+smallvec = { workspace = true }
+serde-wasm-bindgen = { workspace = true, optional = true }
+thiserror = { workspace = true }
+tokio = { workspace = true, features = ["sync"], default-features = false }
+wasm-bindgen = { workspace = true }
+wasm-bindgen-futures = { workspace = true }
+web-time = { workspace = true, optional = true }
+
+[dependencies.internal_macros]
+version = "1"
+package = "indexed_db_futures_macros_internal"
+path = "internal_macros"
 
 [dependencies.web-sys]
-version = "0.3.64"
+workspace = true
 features = [
-    "DomException",
-    "DomStringList",
-    "Event",
-    "EventTarget",
-    "IdbDatabase",
-    "IdbFactory",
-    "IdbObjectStore",
-    "IdbObjectStoreParameters",
-    "IdbOpenDbRequest",
-    "IdbKeyRange",
-    "IdbRequest",
-    "IdbRequestReadyState",
-    "IdbTransaction",
-    "IdbTransactionMode",
-    "IdbVersionChangeEvent",
-    "Window",
-    "WorkerGlobalScope",
+  "console",
+  "DomException",
+  "DomStringList",
+  "Event",
+  "EventTarget",
+  "IdbDatabase",
+  "IdbFactory",
+  "IdbObjectStore",
+  "IdbObjectStoreParameters",
+  "IdbRequestReadyState",
+  "IdbOpenDbRequest",
+  "IdbKeyRange",
+  "IdbRequest",
+  "IdbTransaction",
+  "IdbTransactionMode",
+  "IdbVersionChangeEvent",
+  "Window",
+  "WorkerGlobalScope",
 ]
 
+[dev-dependencies]
+console_log = { workspace = true }
+futures = { workspace = true }
+impartial-ord = { workspace = true }
+log = { workspace = true }
+rand = { workspace = true }
+uuid = { workspace = true, features = ["v4", "js"] }
+wasm-bindgen-test = { workspace = true }
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "doc_cfg"]
+
 [lints.rust]
-unexpected_cfgs = { level = "deny", check-cfg = ['cfg(doc_cfg)'] }
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(doc_cfg)'] }
