@@ -1,0 +1,45 @@
+name: Unit test
+on:
+  workflow_call:
+    inputs:
+      toolchain:
+        description: Rust version
+        default: stable
+        type: string
+      flags:
+        description: cli args
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Test with ${{ inputs.flags || 'no flags' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Init toolchain
+        uses: alorel-actions/cargo/init@v1
+        with:
+          toolchain: ${{ inputs.toolchain }}
+          cache-prefix: test
+          cache-suffix: ${{inputs.flags}}
+          local: true
+
+      - name: Build
+        run: cargo build --locked ${{ inputs.flags }}
+
+      - name: Install wasm-pack
+        uses: alorel-actions/cargo-global-dep@v1
+        with:
+          name: wasm-pack
+          version: 0.13.0
+
+      - name: Test (Chrome)
+        run: wasm-pack test --headless --chrome --locked --package idb_test ${{ inputs.flags }}
+
+      - name: Test (Firefox)
+        run: wasm-pack test --headless --firefox --locked --package idb_test ${{ inputs.flags }}

@@ -72,19 +72,15 @@ jobs:
       - name: Clippy
         run: cargo clippy --workspace --tests --all-features --locked --no-deps
 
-  unit:
-    name: Test on ${{ matrix.toolchain }} with ${{ matrix.flags || 'no features' }}
-    runs-on: ubuntu-latest
+  feature:
+    uses: ./.github/workflows/unit-test.yml
+    with:
+      flags: ${{ matrix.flags }}
     strategy:
       fail-fast: false
       matrix:
-        toolchain:
-          - nightly-2024-07-25
-          - stable
-          - 1.75.0
         flags:
           - ''
-          - --all-features
           - --features cursors
           - --features dates
           - --features indices
@@ -102,32 +98,19 @@ jobs:
           - --features "indices cursors streams serde"
           - --features "dates serde"
           - --features "cursors serde"
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
 
-      - name: Init toolchain
-        uses: alorel-actions/cargo/init@v1
-        with:
-          toolchain: ${{matrix.toolchain}}
-          cache-prefix: test
-          cache-suffix: ${{matrix.flags}}
-          local: true
-
-      - name: Build
-        run: cargo build --locked ${{ matrix.flags }}
-
-      - name: Install wasm-pack
-        uses: alorel-actions/cargo-global-dep@v1
-        with:
-          name: wasm-pack
-          version: 0.13.0
-
-      - name: Test (Chrome)
-        run: wasm-pack test --headless --chrome --locked --package idb_test ${{ matrix.flags }}
-
-      - name: Test (Firefox)
-        run: wasm-pack test --headless --firefox --locked --package idb_test ${{ matrix.flags }}
+  rust-version:
+    uses: ./.github/workflows/unit-test.yml
+    with:
+      toolchain: ${{ matrix.toolchain }}
+      flags: --all-features
+    strategy:
+      fail-fast: false
+      matrix:
+        toolchain:
+          - nightly-2024-07-25
+          - stable
+          - 1.75.0
 
   done:
     name: All tests
@@ -135,7 +118,8 @@ jobs:
     needs:
       - doc
       - lint
-      - unit
+      - feature
+      - rust-version
     steps:
       - uses: actions/checkout@v4
         name: Checkout
