@@ -105,8 +105,11 @@ jobs:
           name: wasm-pack
           version: 0.13.0
 
-      - name: Test
-        run: wasm-pack test --headless --firefox --chrome --locked --package idb_test ${{ matrix.flags }}
+      - name: Test (Chrome)
+        run: wasm-pack test --headless --chrome --locked --package idb_test ${{ matrix.flags }}
+
+      - name: Test (Firefox)
+        run: wasm-pack test --headless --firefox --locked --package idb_test ${{ matrix.flags }}
 
   done:
     name: All tests

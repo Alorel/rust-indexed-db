@@ -1,6 +1,6 @@
 <component name="ProjectRunConfigurationManager">
   <configuration default="false" name="Test:default" type="ShConfigurationType">
-    <option name="SCRIPT_TEXT" value="wasm-pack test --headless --chrome --package idb_test" />
+    <option name="SCRIPT_TEXT" value="wasm-pack test --headless --chrome --firefox --package idb_test" />
     <option name="INDEPENDENT_SCRIPT_PATH" value="true" />
     <option name="SCRIPT_PATH" value="" />
     <option name="SCRIPT_OPTIONS" value="" />
