@@ -35,7 +35,7 @@ pub async fn get() {
     let none = dyn_await!(idx.get::<KeyVal, _, _>(random_str()));
     assert_eq!(none, Ok(None));
 
-    let one = dyn_await!(idx.get::<KeyVal, _, _>(KeyRange::Only(Value::MAX)));
+    let one = dyn_await!(idx.get::<KeyVal, Value, _>(KeyRange::Only(Value::MAX)));
     assert_eq!(one, Ok(Some(KeyVal::new(Key::MIN, Value::MAX))));
 
     let ranged = dyn_await!(idx.get::<KeyVal, _, _>(Value::new(3)..=Value::new(5)));
@@ -54,7 +54,7 @@ pub async fn get_key() {
 
     let one = {
         let req = idx
-            .get_key(KeyRange::Only(Value::MAX))
+            .get_key::<Value, _>(KeyRange::Only(Value::MAX))
             .with_key_type::<Key>();
         dyn_await!(req)
     };
