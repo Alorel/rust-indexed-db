@@ -81,7 +81,7 @@ jobs:
         toolchain:
           - nightly-2024-07-25
           - stable
-          - 1.74.0
+          - 1.75.0
         flags:
           - ''
           - --all-features
