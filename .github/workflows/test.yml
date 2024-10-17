@@ -28,6 +28,7 @@ permissions:
 env:
   CARGO_INCREMENTAL: 0
   RUSTFLAGS: --deny warnings
+  RUSTDOCFLAGS: --deny warnings
 
 jobs:
   doc:
