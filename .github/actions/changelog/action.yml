@@ -1,0 +1,56 @@
+name: Generate changelog
+description: Generate the changelog
+outputs:
+  release-type:
+    description: Release type
+    value: ${{ steps.log.outputs.release-type }}
+  version:
+    description: Next version
+    value: ${{ steps.log.outputs.next-version }}
+  issues-closed:
+    description: Issues closed
+    value: ${{ steps.log.outputs.issues-closed }}
+  changelog:
+    description: Changelog value
+    value: ${{ steps.log.outputs.changelog }}
+  should-release:
+    description: Should release
+    value: ${{ steps.log.outputs.should-release }}
+runs:
+  using: composite
+  steps:
+    - name: Conditional args
+      id: args
+      if: ${{ startsWith(github.ref, 'refs/tags/') }}
+      shell: bash
+      run: >
+        echo "before=${{ github.ref_name }}" >> $GITHUB_OUTPUT &&
+        echo "until=${{ github.ref_name }}" >> $GITHUB_OUTPUT
+
+    - name: Get last tag
+      id: last-tag
+      uses: alorel-actions/semantic-release-lite/last-tag@v0
+      with:
+        before: ${{ steps.args.outputs.before }}
+
+    - name: Generate changelog
+      id: log
+      uses: alorel-actions/semantic-release-lite/generate-changelog@v0
+      with:
+        last-tag: ${{ steps.last-tag.outputs.last-tag }}
+        from: ${{ steps.last-tag.outputs.last-tag }}
+        until: ${{ steps.args.outputs.until || github.sha }}
+        stay-at-zero: true
+        minor-types: |
+          feat: Features
+          rm: Removals
+        patch-types: |
+          fix: Bug Fixes
+          perf: Performance
+          chore: Maintenance
+          deps: Dependency updates
+          refactor: Refactors
+          docs: Documentation
+        trivial-types: |
+          ci: CI & Build
+          build: CI & Build

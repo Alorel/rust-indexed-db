@@ -1,0 +1,37 @@
+[package]
+name = "idb_test"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[features]
+cursors = ["idb_fut/cursors"]
+dates = ["idb_fut/dates", "_serialise-deserialise-dyn"]
+indices = ["idb_fut/indices"]
+list-databases = ["idb_fut/list-databases"]
+serde = ["idb_fut/serde", "dep:serde"]
+streams = ["idb_fut/streams"]
+switch = ["idb_fut/switch"]
+typed-arrays = ["idb_fut/typed-arrays"]
+
+_serialise-deserialise-dyn = []
+
+[dependencies]
+idb_fut = { package = "indexed_db_futures", path = ".." }
+
+accessory = { workspace = true }
+cfg-if = { workspace = true }
+delegate-display = { workspace = true }
+derive_more = { workspace = true, features = ["from", "deref", "deref_mut"], default-features = false }
+fancy_constructor = { workspace = true }
+futures = { workspace = true }
+impartial-ord = { workspace = true }
+js-sys = { workspace = true }
+rand = { workspace = true }
+smallvec = { workspace = true }
+serde = { workspace = true, features = ["derive"], optional = true }
+wasm-bindgen = { workspace = true }
+wasm-bindgen-test = { workspace = true }
+tokio = { workspace = true, features = ["sync"], default-features = false }
+uuid = { workspace = true, features = ["v4", "js"] }
+web-sys = { workspace = true }
