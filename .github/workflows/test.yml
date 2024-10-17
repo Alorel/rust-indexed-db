@@ -85,6 +85,23 @@ jobs:
         flags:
           - ''
           - --all-features
+          - --features cursors
+          - --features dates
+          - --features indices
+          - --features list-databases
+          - --features serde
+          - --features "cursors streams"
+          - --features switch
+          - --features typed-arrays
+          - --features "typed-arrays serde"
+          - --features "cursors streams serde"
+          - --features "indices serde"
+          - --features "indices cursors"
+          - --features "indices cursors serde"
+          - --features "indices cursors streams"
+          - --features "indices cursors streams serde"
+          - --features "dates serde"
+          - --features "cursors serde"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -94,6 +111,7 @@ jobs:
         with:
           toolchain: ${{matrix.toolchain}}
           cache-prefix: test
+          cache-suffix: ${{matrix.flags}}
           local: true
 
       - name: Build
