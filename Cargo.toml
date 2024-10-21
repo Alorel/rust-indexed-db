@@ -48,7 +48,7 @@ wasm-bindgen-test = "0.3.42"
 [dependencies]
 accessory = "1"
 cfg-if = "1"
-delegate-display = "2"
+delegate-display = "3"
 fancy_constructor = "1.2"
 js-sys = "0.3.64"
 uuid = {version = "1.8", features = ["v4", "js"]}
