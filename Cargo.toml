@@ -46,7 +46,7 @@ crate-type = ["lib"]
 wasm-bindgen-test = "0.3.42"
 
 [dependencies]
-accessory = "1"
+accessory = "2"
 cfg-if = "1"
 delegate-display = "2"
 fancy_constructor = "1.2"
