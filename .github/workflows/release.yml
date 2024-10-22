@@ -1,7 +1,7 @@
 name: Release
 concurrency: release
 on:
-  workflow_dispatch: {}
+  workflow_dispatch: { }
 
 permissions:
   contents: read
@@ -13,14 +13,38 @@ env:
 jobs:
   test:
     name: Test
-    uses: ./.github/workflows/_test.yml
+    uses: ./.github/workflows/test.yml
+    with:
+      is-workflow-call: true
 
-  release:
-    name: Release
+  prepare:
+    name: Set up
+    runs-on: ubuntu-latest
+    outputs:
+      release-type: ${{ steps.changelog.outputs.release-type }}
+      version: ${{ steps.changelog.outputs.version }}
+      issues-closed: ${{ steps.changelog.outputs.issues-closed }}
+      changelog: ${{ steps.changelog.outputs.changelog }}
+      should-release: ${{ steps.changelog.outputs.should-release }}
+    steps:
+      - uses: actions/checkout@v4
+        name: Checkout
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Generate changelog
+        id: changelog
+        uses: ./.github/actions/changelog
+
+  git:
+    name: Git release
+    runs-on: ubuntu-latest
     needs:
       - test
-    runs-on: ubuntu-latest
-    environment: crates-io
+      - prepare
+    if: ${{ needs.prepare.outputs.should-release }}
+    environment: github
     permissions:
       contents: write
     steps:
@@ -31,37 +55,63 @@ jobs:
           fetch-tags: true
           token: ${{ secrets.GH_TOKEN }}
 
-      - name: Parse
-        id: parse
-        uses: alorel-actions/semantic-release-lite@v0
-        with:
-          stay-at-zero: true
-          minor-types: |
-            feat: Features
-          patch-types: |
-            fix: Bug Fixes
-          trivial-types: |
-            chore: Maintenance
-            deps: Dependency updates
-            ci: CI & Build
-            build: CI & Build
-            refactor: Refactors
-            docs: Documentation
-            perf: Performance
+      - name: Git identity
+        uses: alorel-actions/git-ident@v1
 
-      - name: Prep release
-        if: ${{ steps.parse.outputs.should-release }}
-        id: prep
-        uses: ./.github/actions/prep-release
+      - name: Init toolchain
+        uses: alorel-actions/cargo/init@v1
         with:
-          release-type: ${{ steps.parse.outputs.release-type }}
-          version: ${{ steps.parse.outputs.next-version }}
+          cache-prefix: release
 
-      - name: Release
-        if: ${{ steps.prep.outputs.in-sync }}
-        uses: ./.github/actions/release
+      - name: cargo-bump
+        uses: alorel-actions/cargo/bump@v1
         with:
-          version: ${{ steps.parse.outputs.next-version }}
-          changelog: ${{ steps.parse.outputs.changelog }}
-          issues-closed: ${{ steps.parse.outputs.issues-closed }}
-          crates-io-token: ${{ secrets.CRATES_IO_TOKEN }}
+          release-type: ${{ needs.prepare.outputs.release-type }}
+
+      - name: Git release
+        uses: alorel-actions/cargo/release-git@v1
+        with:
+          version: ${{ needs.prepare.outputs.version }}
+          changelog: ${{ needs.prepare.outputs.changelog }}
+
+  release:
+    name: Crate release
+    needs:
+      - git
+    if: ${{ needs.prepare.outputs.should-release }}
+    runs-on: ubuntu-latest
+    environment: crates-io
+    steps:
+      - uses: actions/checkout@v4
+        name: Checkout
+        with:
+          fetch-tags: true
+          ref: ${{ needs.prepare.outputs.version }}
+
+      - name: Init toolchain
+        uses: alorel-actions/cargo/init@v1
+        with:
+          cache-prefix: release
+
+      - name: Publish crate
+        run: cargo publish --locked --token ${{ secrets.CRATES_IO_TOKEN }}
+
+  notify:
+    name: Notify closed issues
+    needs:
+      - release
+      - prepare
+    if: ${{ needs.prepare.outputs.should-release && needs.prepare.outputs.issues-closed }}
+    runs-on: ubuntu-latest
+    environment: github
+    permissions:
+      contents: write
+    steps:
+      - name: Notify
+        if: ${{ needs.prepare.outputs.issues-closed }}
+        uses: alorel-actions/semantic-release-lite/notify@v0
+        with:
+          tag: ${{ needs.prepare.outputs.version }}
+          issues: ${{ needs.prepare.outputs.issues-closed }}
+          allow-out-of-sync: true
+          gh-token: ${{ secrets.GH_TOKEN }}
