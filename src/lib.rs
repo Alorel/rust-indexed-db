@@ -205,6 +205,7 @@
 //!
 //! | Feature | Description |
 //! |---------|-------------|
+//! | `async-upgrade` | Enable async closures in [`upgradeneeded`](https://developer.mozilla.org/en-US/docs/Web/API/IDBOpenDBRequest/upgradeneeded_event) event listeners. |
 //! | `cursors` | Enable opening IndexedDB [cursors](https://developer.mozilla.org/en-US/docs/Web/API/IDBCursor). |
 //! | `dates` | Enable [`SystemTime`](std::time::SystemTime) & [`Date`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date) handling. |
 //! | `indices` | Enable IndexedDB [indices](https://developer.mozilla.org/en-US/docs/Web/API/IDBIndex). |
@@ -212,6 +213,7 @@
 //! | `serde` | Enable [`serde`](::serde) integration. |
 //! | `streams` | Implement [`Stream`](::futures_core::Stream) where applicable. |
 //! | `switch` | Enable [switches](primitive::Switch2). |
+//! | `tx-done` | Enable waiting for transactions to complete without consuming them. |
 //! | `typed-arrays` | Enable [typed array](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/TypedArray) handling. |
 //! | `version-change` | Enable listening for [`versionchange`](https://developer.mozilla.org/en-US/docs/Web/API/IDBDatabase/versionchange_event) events. |
 

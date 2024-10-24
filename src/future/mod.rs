@@ -4,7 +4,7 @@ pub use array_map::ArrayMapFuture;
 pub use basic::BasicRequest;
 pub use get_all::*;
 pub use maybe_errored::MaybeErrored;
-pub use open_db::OpenDbRequest;
+pub use open_db::{OpenDbListener, OpenDbRequest};
 pub use request::{Request, VoidRequest};
 pub use traits::*;
 

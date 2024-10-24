@@ -1,22 +1,12 @@
 use super::DBFactory;
 use crate::error::OpenDbError;
-use crate::future::OpenDbRequest;
+use crate::future::{OpenDbListener, OpenDbRequest};
 use internal_macros::{generic_bounds, BuildIntoFut, StructName};
 use sealed::sealed;
 
 type WithFactory<N, V = (), B = (), U = ()> = OpenDbRequestBuilder<N, V, B, U, DBFactory>;
 
 /// Database open request builder.
-///
-/// # Generics
-///
-/// | Generic param | Description |
-/// |---|---|
-/// | `N` | Database name |
-/// | `V` | Database version |
-/// | `B` | `blocked` event handler. |
-/// | `U` | `upgradeneeded` event handler. |
-/// | `Fa` | Either [`DBFactory`] or `()` if a factory should be generated on the fly |
 #[derive(Clone, StructName, BuildIntoFut)]
 #[must_use]
 pub struct OpenDbRequestBuilder<N, V = (), B = (), U = (), Fa = ()> {
@@ -81,11 +71,14 @@ impl<N, V, B, U, Fa> OpenDbRequestBuilder<N, V, B, U, Fa> {
     /// Set the [blocked](https://developer.mozilla.org/en-US/docs/Web/API/IDBOpenDBRequest/blocked_event)
     /// event handler.
     #[generic_bounds(blocked_cb(B2))]
-    pub fn with_on_blocked<B2>(self, on_blocked: B2) -> OpenDbRequestBuilder<N, V, B2, U, Fa> {
+    pub fn with_on_blocked<B2>(
+        self,
+        on_blocked: B2,
+    ) -> OpenDbRequestBuilder<N, V, OpenDbListener, U, Fa> {
         OpenDbRequestBuilder {
             name: self.name,
             version: self.version,
-            on_blocked,
+            on_blocked: OpenDbListener::new_blocked(on_blocked),
             on_upgrade_needed: self.on_upgrade_needed,
             factory: self.factory,
         }
@@ -97,12 +90,29 @@ impl<N, V, B, U, Fa> OpenDbRequestBuilder<N, V, B, U, Fa> {
     pub fn with_on_upgrade_needed<U2>(
         self,
         on_upgrade_needed: U2,
-    ) -> OpenDbRequestBuilder<N, V, B, U2, Fa> {
+    ) -> OpenDbRequestBuilder<N, V, B, OpenDbListener, Fa> {
         OpenDbRequestBuilder {
             name: self.name,
             version: self.version,
             on_blocked: self.on_blocked,
-            on_upgrade_needed,
+            on_upgrade_needed: OpenDbListener::new_upgrade(on_upgrade_needed),
+            factory: self.factory,
+        }
+    }
+
+    /// Set the [upgradeneeded](https://developer.mozilla.org/en-US/docs/Web/API/IDBOpenDBRequest/upgradeneeded_event)
+    /// event handler that returns a `Future`.
+    #[generic_bounds(upgrade_async_cb(fun(U2), fut(U2Fut)))]
+    #[cfg(feature = "async-upgrade")]
+    pub fn with_on_upgrade_needed_fut<U2, U2Fut>(
+        self,
+        on_upgrade_needed: U2,
+    ) -> OpenDbRequestBuilder<N, V, B, OpenDbListener, Fa> {
+        OpenDbRequestBuilder {
+            name: self.name,
+            version: self.version,
+            on_blocked: self.on_blocked,
+            on_upgrade_needed: OpenDbListener::new_upgrade_fut(on_upgrade_needed),
             factory: self.factory,
         }
     }
@@ -136,9 +146,9 @@ impl<N> crate::Build for WithFactory<N> {
     }
 }
 
-#[generic_bounds(db_name(N), db_version(V), upgrade_cb(U), blocked_cb(B))]
+#[generic_bounds(db_name(N), db_version(V))]
 #[sealed]
-impl<N, V, B, U> crate::Build for WithFactory<N, V, B, U> {
+impl<N, V> crate::Build for WithFactory<N, V, OpenDbListener, OpenDbListener> {
     type Ok = OpenDbRequest;
     type Err = OpenDbError;
 
@@ -154,9 +164,9 @@ impl<N, V, B, U> crate::Build for WithFactory<N, V, B, U> {
     }
 }
 
-#[generic_bounds(db_name(N), upgrade_cb(U), blocked_cb(B))]
+#[generic_bounds(db_name(N))]
 #[sealed]
-impl<N, B, U> crate::Build for WithFactory<N, (), B, U> {
+impl<N> crate::Build for WithFactory<N, (), OpenDbListener, OpenDbListener> {
     type Ok = OpenDbRequest;
     type Err = OpenDbError;
 
@@ -170,9 +180,9 @@ impl<N, B, U> crate::Build for WithFactory<N, (), B, U> {
     }
 }
 
-#[generic_bounds(db_name(N), db_version(V), upgrade_cb(U))]
+#[generic_bounds(db_name(N), db_version(V))]
 #[sealed]
-impl<N, V, U> crate::Build for WithFactory<N, V, (), U> {
+impl<N, V> crate::Build for WithFactory<N, V, (), OpenDbListener> {
     type Ok = OpenDbRequest;
     type Err = OpenDbError;
 
@@ -184,9 +194,9 @@ impl<N, V, U> crate::Build for WithFactory<N, V, (), U> {
     }
 }
 
-#[generic_bounds(db_name(N), upgrade_cb(U))]
+#[generic_bounds(db_name(N))]
 #[sealed]
-impl<N, U> crate::Build for WithFactory<N, (), (), U> {
+impl<N> crate::Build for WithFactory<N, (), (), OpenDbListener> {
     type Ok = OpenDbRequest;
     type Err = OpenDbError;
 
@@ -196,9 +206,9 @@ impl<N, U> crate::Build for WithFactory<N, (), (), U> {
     }
 }
 
-#[generic_bounds(db_name(N), db_version(V), blocked_cb(B))]
+#[generic_bounds(db_name(N), db_version(V))]
 #[sealed]
-impl<N, V, B> crate::Build for WithFactory<N, V, B> {
+impl<N, V> crate::Build for WithFactory<N, V, OpenDbListener> {
     type Ok = OpenDbRequest;
     type Err = OpenDbError;
 
@@ -210,9 +220,9 @@ impl<N, V, B> crate::Build for WithFactory<N, V, B> {
     }
 }
 
-#[generic_bounds(db_name(N), blocked_cb(B))]
+#[generic_bounds(db_name(N))]
 #[sealed]
-impl<N, B> crate::Build for WithFactory<N, (), B> {
+impl<N> crate::Build for WithFactory<N, (), OpenDbListener> {
     type Ok = OpenDbRequest;
     type Err = OpenDbError;
 

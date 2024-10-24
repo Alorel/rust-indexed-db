@@ -1,3 +1,5 @@
+use std::sync::PoisonError;
+
 /// We reached a state that shouldn't have been allowed by the API.
 #[derive(Debug, PartialEq, Eq, Copy, Clone, thiserror::Error)]
 #[non_exhaustive]
@@ -31,4 +33,11 @@ pub enum UnexpectedDataError {
     /// A mutex was poisoned.
     #[error("Mutex poisoned.")]
     PoisonedLock,
+}
+
+impl<T> From<PoisonError<T>> for UnexpectedDataError {
+    #[inline]
+    fn from(_: PoisonError<T>) -> Self {
+        Self::PoisonedLock
+    }
 }

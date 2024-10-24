@@ -138,6 +138,9 @@ jobs:
           - --features "indices cursors streams serde"
           - --features "dates serde"
           - --features "cursors serde"
+          - --features "async-upgrade"
+          - --features "tx-done"
+          - --features "async-upgrade tx-done"
 
   done:
     name: All tests

@@ -1,8 +1,63 @@
 use crate::commons::FnTarget;
 use crate::TokenStream1;
+use macroific::prelude::*;
+use proc_macro2::Ident;
 use quote::ToTokens;
-use syn::punctuated::Punctuated;
 use syn::{parse_quote, Error, WherePredicate};
+
+macro_rules! make_opts {
+    ($struct_name: ident => {
+        $($($opt: ident)|+ => $predicate: ty),+
+        $(,[custom] => {
+            $($extra_opt: ident => $extra_ty: ty),+ $(,)?
+        })? $(,)?
+    }) => {
+        /// # Options list
+        ///
+        /// | Option | Predicate |
+        /// |--------|-----------|
+        $($(#[doc = concat!(" | `", stringify!($opt), "` | `", stringify!($predicate), "` |")])+)+
+        ///
+        /// # Extras
+        ///
+        /// | Option | Type |
+        /// |--------|-----------|
+        $($(#[doc = concat!(" | `", stringify!($extra_opt), "` | `", stringify!($extra_ty), "` |")])+)+
+        #[derive(::macroific::attr_parse::AttributeOptions)]
+        pub(super) struct $struct_name {
+            $($($opt: ::syn::punctuated::Punctuated<proc_macro2::Ident, ::syn::Token![,]>,)+)+
+            $($($extra_opt: Option<$extra_ty>,)+)?
+        }
+
+        impl ::syn::parse::Parse for $struct_name {
+            #[inline]
+            fn parse(input: ::syn::parse::ParseStream) -> ::syn::Result<Self> {
+                ::macroific::attr_parse::AttributeOptions::from_stream(input)
+            }
+        }
+
+        impl $struct_name {
+            fn extend_target(self, target: &mut FnTarget) {
+                $($(if !self.$opt.is_empty() {
+                    extend_generics(self.$opt, target, ::quote::quote!($predicate));
+                })+)+
+                $($(if let Some($extra_opt) = self.$extra_opt {
+                    $extra_opt.extend_target(target);
+                })+)?
+            }
+        }
+    };
+}
+
+make_opts!(Opts => {
+    db_name|index_name|store_name|key_path => ::core::convert::AsRef<str>,
+    db_version => crate::factory::DBVersion,
+    blocked_cb => ::core::ops::FnOnce(crate::database::VersionChangeEvent) -> crate::Result<()> + 'static,
+    upgrade_cb => ::core::ops::FnOnce(crate::database::VersionChangeEvent, crate::database::Database) -> crate::Result<()> + 'static,
+    [custom] => {
+        upgrade_async_cb => UpgradeAsyncCb,
+    },
+});
 
 #[inline]
 pub(super) fn exec(spec: TokenStream1, target: TokenStream1) -> TokenStream1 {
@@ -18,41 +73,30 @@ pub(super) fn exec(spec: TokenStream1, target: TokenStream1) -> TokenStream1 {
     }
 }
 
-macro_rules! make_opts {
-    ($struct_name: ident => { $($($opt: ident)|+ => $predicate: ty),+ $(,)? }) => {
-        /// Options list
-        ///
-        /// | Option | Predicate |
-        /// |--------|-----------|
-        $($(#[doc = concat!(" | `", stringify!($opt), "` | `", stringify!($predicate), "` |")])+)+
-        #[derive(::macroific::attr_parse::AttributeOptions)]
-        pub(super) struct $struct_name {
-            $($($opt: ::syn::punctuated::Punctuated<proc_macro2::Ident, ::syn::Token![,]>),+),+
-        }
+#[derive(ParseOption)]
+struct UpgradeAsyncCb {
+    #[attr_opts(default = false)]
+    fun: Ident,
 
-        impl ::syn::parse::Parse for $struct_name {
-            #[inline]
-            fn parse(input: ::syn::parse::ParseStream) -> ::syn::Result<Self> {
-                ::macroific::attr_parse::AttributeOptions::from_stream(input)
-            }
-        }
-
-        impl $struct_name {
-            fn extend_target(self, target: &mut FnTarget) {
-                $($(if !self.$opt.is_empty() {
-                    extend_generics(self.$opt, target, ::quote::quote!($predicate));
-                })+)+
-            }
-        }
-    };
+    #[attr_opts(default = false)]
+    fut: Ident,
 }
 
-make_opts!(Opts => {
-    db_name|index_name|store_name|key_path => ::core::convert::AsRef<str>,
-    db_version => crate::factory::DBVersion,
-    blocked_cb => ::core::ops::FnOnce(crate::database::VersionChangeEvent) -> crate::Result<()> + 'static,
-    upgrade_cb => ::core::ops::FnOnce(crate::database::VersionChangeEvent, crate::database::Database) -> crate::Result<()> + 'static,
-});
+impl UpgradeAsyncCb {
+    fn extend_target(self, target: &mut FnTarget) {
+        let Self { fun, fut } = self;
+        let wheres = [
+            parse_quote!(#fun: ::core::ops::FnOnce(crate::database::VersionChangeEvent, crate::database::Database) -> #fut + 'static),
+            parse_quote!(#fut: ::core::future::Future<Output = crate::Result<()>> + 'static),
+        ];
+
+        target
+            .generics_mut()
+            .make_where_clause()
+            .predicates
+            .extend::<[WherePredicate; 2]>(wheres);
+    }
+}
 
 fn on_err(mut target: TokenStream1, e: Error) -> TokenStream1 {
     let e: TokenStream1 = e.into_compile_error().into();
@@ -60,10 +104,11 @@ fn on_err(mut target: TokenStream1, e: Error) -> TokenStream1 {
     target
 }
 
-fn extend_generics<T, I, P>(idents: Punctuated<I, P>, target: &mut FnTarget, ext_with: T)
+fn extend_generics<T, Iter, Item>(idents: Iter, target: &mut FnTarget, ext_with: T)
 where
     T: ToTokens,
-    I: ToTokens,
+    Item: ToTokens,
+    Iter: IntoIterator<Item = Item>,
 {
     let iter = idents
         .into_iter()
