@@ -59,6 +59,16 @@ impl<'a> TransactionRef<'a> {
     pub fn error(&self) -> Option<Error> {
         self.as_sys().error().map(Into::into)
     }
+
+    /// Return a Future that resolves when the transaction finishes, successfully or not.
+    ///
+    /// The primary use case is awaiting a `versionchange` transaction. You must make sure that the transaction hasn't
+    /// finished already before you call this fn otherwise the future will never complete.
+    #[cfg(feature = "tx-done")]
+    #[allow(clippy::missing_errors_doc)]
+    pub fn on_done(&self) -> crate::Result<super::TransactionDone> {
+        super::TransactionDone::new(self.as_sys().clone())
+    }
 }
 
 impl Debug for TransactionRef<'_> {

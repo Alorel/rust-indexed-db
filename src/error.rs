@@ -1,5 +1,6 @@
 //! Crate errors.
 
+use std::sync::PoisonError;
 use wasm_bindgen::prelude::*;
 
 pub use dom_exception::DomException;
@@ -67,5 +68,12 @@ impl From<JsValue> for Error {
             Ok(v) => v.into(),
             Err(v) => Self::Unknown(v.into()),
         }
+    }
+}
+
+impl<T> From<PoisonError<T>> for Error {
+    #[inline]
+    fn from(value: PoisonError<T>) -> Self {
+        UnexpectedDataError::from(value).into()
     }
 }

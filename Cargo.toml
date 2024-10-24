@@ -23,6 +23,7 @@ include = [
 ]
 
 [features]
+async-upgrade = []
 cursors = [
   "web-sys/IdbCursor",
   "web-sys/IdbCursorWithValue",
@@ -47,10 +48,12 @@ serde = [
 ]
 streams = [
   "dep:futures-core",
+  "wasm_evt_listener/streams",
 ]
 switch = []
+tx-done = ["dep:wasm_evt_listener"]
 typed-arrays = []
-version-change = ["tokio/macros"]
+version-change = ["tokio/macros", "dep:wasm_evt_listener"]
 _serialise-deserialise-dyn = []
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -81,6 +84,7 @@ uuid = "1.8"
 wasm-bindgen = "0.2.95"
 wasm-bindgen-futures = "0.4.45"
 wasm-bindgen-test = "0.3.45"
+wasm_evt_listener = "0.1"
 web-time = "1.1"
 web-sys = "0.3.72"
 
@@ -105,6 +109,7 @@ thiserror = { workspace = true }
 tokio = { workspace = true, features = ["sync"], default-features = false }
 wasm-bindgen = { workspace = true }
 wasm-bindgen-futures = { workspace = true }
+wasm_evt_listener = { workspace = true, optional = true }
 web-time = { workspace = true, optional = true }
 
 [dependencies.internal_macros]

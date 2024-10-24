@@ -17,6 +17,12 @@ mod listeners;
 mod options;
 mod tx_sys;
 
+iffeat! {
+    #[cfg(feature = "tx-done")]
+    mod on_done;
+    pub use on_done::{TransactionDone, TransactionFinishKind};
+}
+
 /// An [`IDBTransaction`](https://developer.mozilla.org/en-US/docs/Web/API/IDBTransaction) implementation.
 ///
 /// Unlike JS transactions, **this defaults to aborting the transaction instead of committing it** -

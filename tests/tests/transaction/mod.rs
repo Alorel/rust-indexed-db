@@ -2,6 +2,9 @@ use crate::prelude::*;
 
 pub mod commit_rollback;
 
+#[cfg(feature = "tx-done")]
+pub mod on_done;
+
 #[wasm_bindgen_test]
 pub async fn multi_store() {
     let db = random_db_with_init(move |_, db| {
