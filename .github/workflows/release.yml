@@ -35,17 +35,17 @@ jobs:
         uses: ./.github/actions/changelog
 
       - name: Init toolchain
-        uses: alorel-actions/cargo/init@v1
+        uses: alorel-actions/cargo/init@v2
         with:
           cache-prefix: release
 
       - name: cargo-bump
-        uses: alorel-actions/cargo/bump@v1
+        uses: alorel-actions/cargo/bump@v2
         with:
           release-type: ${{ steps.changelog.outputs.release-type }}
 
       - name: Git release
-        uses: alorel-actions/cargo/release-git@v1
+        uses: alorel-actions/cargo/release-git@v2
         with:
           version: ${{ steps.changelog.outputs.version }}
           changelog: ${{ steps.changelog.outputs.changelog }}

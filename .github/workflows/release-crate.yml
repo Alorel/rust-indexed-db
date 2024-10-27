@@ -20,7 +20,7 @@ jobs:
         name: Checkout
 
       - name: Init toolchain
-        uses: alorel-actions/cargo/init@v1
+        uses: alorel-actions/cargo/init@v2
         with:
           cache-prefix: release
 
