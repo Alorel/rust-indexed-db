@@ -30,7 +30,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Init toolchain
-        uses: alorel-actions/cargo/init@v1
+        uses: alorel-actions/cargo/init@v2
         with:
           toolchain: ${{ inputs.toolchain }}
           cache-prefix: test
