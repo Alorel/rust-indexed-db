@@ -60,6 +60,14 @@ jobs:
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@v4
+        name: Checkout
+        with:
+          token: ${{ secrets.GH_TOKEN }}
+
+      - name: Git identity
+        uses: alorel-actions/git-ident@v1
+
       - name: Notify
         if: ${{ needs.git.outputs.issues-closed }}
         uses: alorel-actions/semantic-release-lite/notify@v0
