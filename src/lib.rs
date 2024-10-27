@@ -201,6 +201,20 @@
 //! ```
 //!
 
+//! # Environment support
+//!
+//! The following table is populated **as a best effort attempt** based on the crate's unit tests succeeding/failing
+//! under different configurations.
+//!
+//! | Environment      | Chrome | Firefox | Safari |
+//! |------------------|---------|---------|--------|
+//! | Browser          |   ✅    |   ✅    |   ✅   |
+//! | Dedicated Worker |  ✅     |   ✅    |   ✅   |
+//! | Shared Worker    | ✅      |   ✅    |   ✅   |
+//! | Worker           |  ✅    |   ✅    |   ✅   |
+//! | Service worker   | ✅    |   ❌    |   ✅   |
+//!
+
 //! # Feature table
 //!
 //! | Feature | Description |
