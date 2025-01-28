@@ -22,6 +22,12 @@ pub trait DeserialiseFromJs {
         Self: Sized;
 }
 
+impl SerialiseToJs for JsValue {
+    fn serialise_to_js(&self) -> crate::Result<JsValue> {
+        Ok(self.clone())
+    }
+}
+
 impl<T: Serialize> SerialiseToJs for T {
     fn serialise_to_js(&self) -> crate::Result<JsValue> {
         serde_wasm_bindgen::to_value(self).map_err(Into::into)
