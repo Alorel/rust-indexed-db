@@ -69,6 +69,16 @@ impl<'a, K, Qs, T, Q, C> GetAll<'a, K, Qs, T, Q, C> {
         }
     }
 
+    /// Set the raw query to be used.
+    pub fn with_raw_query(self, query: JsValue) -> GetAll<'a, K, Qs, T, JsValue, C> {
+        GetAll {
+            query_source: self.query_source,
+            query,
+            limit: self.limit,
+            marker: PhantomData,
+        }
+    }
+
     /// Set the maximum number of results to return.
     #[inline]
     pub fn with_limit(self, limit: u32) -> GetAll<'a, K, Qs, T, Q, u32> {
@@ -171,6 +181,22 @@ const _: () = {
 const _: () = {
     use crate::future::GetAllSerdeRequest;
     use crate::serde::{DeserialiseFromJs, SerialiseToJs};
+
+    #[sealed]
+    impl<K, Qs, Sys, T> crate::BuildSerde for GetAll<'_, K, Qs, T, JsValue>
+    where
+        K: GetAllKind,
+        Qs: SystemRepr<Repr = Sys>,
+        Sys: QuerySourceInternal,
+        T: DeserialiseFromJs,
+    {
+        type Fut = GetAllSerdeRequest<T>;
+
+        fn serde(self) -> crate::Result<Self::Fut> {
+            let req = K::get_with_key(self.query_source, self.query)?;
+            Ok(GetAllSerdeRequest::get_all_serde(req))
+        }
+    }
 
     #[sealed]
     impl<K, Qs, Sys, T> crate::BuildSerde for GetAll<'_, K, Qs, T>
