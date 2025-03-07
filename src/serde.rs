@@ -2,6 +2,7 @@
 
 use serde::de::DeserializeOwned;
 use serde::Serialize;
+use serde_wasm_bindgen::Serializer;
 use wasm_bindgen::prelude::*;
 
 /// A type that's convertible to [`JsValue`] using `serde`, but not necessarily
@@ -24,7 +25,8 @@ pub trait DeserialiseFromJs {
 
 impl<T: Serialize> SerialiseToJs for T {
     fn serialise_to_js(&self) -> crate::Result<JsValue> {
-        serde_wasm_bindgen::to_value(self).map_err(Into::into)
+        self.serialize(&Serializer::new().serialize_maps_as_objects(true))
+            .map_err(Into::into)
     }
 }
 
