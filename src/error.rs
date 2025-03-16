@@ -42,7 +42,7 @@ pub enum Error {
     Serialisation(#[from] SerialisationError),
 
     /// Missing data.
-    #[error("Missing data: {_0}")]
+    #[error("Missing data: {0}")]
     MissingData(#[from] UnexpectedDataError),
 
     /// Generic JS error.

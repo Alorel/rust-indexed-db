@@ -22,15 +22,15 @@ pub enum SimpleValueError {
     DynCast(JsValue),
 
     /// The value is too large.
-    #[error("The value is too large: {}", _0)]
+    #[error("The value is too large: {0}")]
     TooLarge(f64),
 
     /// The value is too small.
-    #[error("The value is too small: {}", _0)]
+    #[error("The value is too small: {0}")]
     TooSmall(f64),
 
     /// Expected an unsigned value.
-    #[error("The value is signed: {}", _0)]
+    #[error("The value is signed: {0}")]
     Signed(f64),
 
     /// Error performing [`TryFromJs`](crate::primitive::TryFromJs) on a [`Switch2`](crate::primitive::Switch2) or its
