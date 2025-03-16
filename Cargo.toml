@@ -78,7 +78,7 @@ sealed = "0.6"
 serde = "1"
 serde-wasm-bindgen = "0.6"
 smallvec = "1.13"
-thiserror = "1"
+thiserror = "2"
 tokio = { version = "1.30", default-features = false }
 uuid = "1.8"
 wasm-bindgen = "0.2.100"
