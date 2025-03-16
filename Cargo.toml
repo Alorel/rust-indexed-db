@@ -65,7 +65,7 @@ accessory = { version = "2" }
 cfg-if = "1"
 console_log = "1"
 delegate-display = { version = "3" }
-derive_more = { version = "1", default-features = false }
+derive_more = { version = "2", default-features = false }
 fancy_constructor = { version = "2" }
 futures = "0.3.30"
 futures-core = "0.3"
