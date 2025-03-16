@@ -45,7 +45,7 @@ jobs:
         uses: alorel-actions/cargo-global-dep@v1
         with:
           name: wasm-pack
-          version: 0.13.0
+          version: 0.13.1
 
       - name: Test (Chrome)
         if: ${{ runner.os != 'macOS' }}

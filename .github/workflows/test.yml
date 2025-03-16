@@ -102,9 +102,9 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - toolchain: nightly-2024-10-18
+          - toolchain: nightly-2025-03-15
             os: ubuntu-latest
-          - toolchain: 1.75.0
+          - toolchain: 1.81.0
             os: ubuntu-latest
           - toolchain: stable
             os: ubuntu-latest
