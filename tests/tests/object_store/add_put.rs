@@ -103,7 +103,7 @@ macro_rules! common_tests {
                 .unwrap()
                 .await;
 
-            assert_eq!(res, Ok(()));
+            assert!(res.is_ok());
         }
     };
 }

@@ -1,5 +1,5 @@
-use super::super::traits::*;
 use super::Listeners;
+use super::{super::traits::*, listeners::EventTargetResult};
 use sealed::sealed;
 use std::task::{Context, Poll};
 use wasm_bindgen::prelude::*;
@@ -31,17 +31,17 @@ impl crate::internal_utils::SystemRepr for UntypedRequest {
 }
 
 impl UntypedRequest {
-    pub(super) fn req_to_result(req: &web_sys::IdbRequest) -> crate::Result<()> {
+    pub(super) fn req_to_result<T>(req: &web_sys::IdbRequest, v: T) -> crate::Result<T> {
         match req.error() {
-            Ok(None) => Ok(()),
+            Ok(None) => Ok(v),
             Ok(Some(e)) => Err(e.into()),
             Err(e) => Err(e.into()),
         }
     }
 
-    fn poll_request(req: &web_sys::IdbRequest) -> Poll<crate::Result<()>> {
+    fn poll_request<T>(req: &web_sys::IdbRequest, v: T) -> Poll<crate::Result<T>> {
         if matches!(req.ready_state(), IdbRequestReadyState::Done) {
-            Poll::Ready(Self::req_to_result(req))
+            Poll::Ready(Self::req_to_result(req, v))
         } else {
             Poll::Pending
         }
@@ -56,13 +56,13 @@ impl UntypedRequest {
 
 #[sealed]
 impl PollUnpinned for UntypedRequest {
-    type Output = crate::Result<()>;
+    type Output = crate::Result<EventTargetResult>;
 
     fn poll_unpinned(&mut self, cx: &mut Context) -> Poll<Self::Output> {
         match self {
             Self::WithListeners(listeners) => listeners.poll_unpinned(cx),
             Self::Bare(req) => {
-                if let Poll::Ready(res) = Self::poll_request(req) {
+                if let Poll::Ready(res) = Self::poll_request(req, EventTargetResult::NotNull) {
                     Poll::Ready(res)
                 } else {
                     let mut listeners = Self::create_listeners(req);
