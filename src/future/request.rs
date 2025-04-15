@@ -1,4 +1,4 @@
-mod listeners;
+pub(crate) mod listeners;
 mod untyped;
 
 use crate::internal_utils::SystemRepr;
@@ -54,10 +54,21 @@ impl PollUnpinned for Request {
 
     fn poll_unpinned(&mut self, cx: &mut Context) -> Poll<Self::Output> {
         match self.inner.poll_unpinned(cx) {
-            Poll::Ready(Ok(())) => Poll::Ready(self.as_sys().result().map_err(Into::into)),
+            Poll::Ready(Ok(_)) => Poll::Ready(self.as_sys().result().map_err(Into::into)),
             Poll::Pending => Poll::Pending,
             Poll::Ready(Err(e)) => Poll::Ready(Err(e)),
         }
+    }
+}
+
+#[sealed]
+#[cfg(feature = "cursors")]
+impl PollUnpinned for Request<listeners::EventTargetResult> {
+    type Output = crate::Result<listeners::EventTargetResult>;
+
+    #[inline]
+    fn poll_unpinned(&mut self, cx: &mut Context) -> Poll<Self::Output> {
+        self.inner.poll_unpinned(cx)
     }
 }
 
@@ -67,6 +78,6 @@ impl PollUnpinned for Request<()> {
 
     #[inline]
     fn poll_unpinned(&mut self, cx: &mut Context) -> Poll<Self::Output> {
-        self.inner.poll_unpinned(cx)
+        self.inner.poll_unpinned(cx).map(|res| res.map(|_| ()))
     }
 }

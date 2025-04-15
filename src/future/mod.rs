@@ -13,7 +13,7 @@ mod basic;
 mod get_all;
 mod maybe_errored;
 mod open_db;
-mod request;
+pub(crate) mod request;
 mod traits;
 
 iffeat! {

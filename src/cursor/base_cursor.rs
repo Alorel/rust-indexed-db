@@ -1,5 +1,6 @@
 use super::{CursorDirection, CursorSys};
-use crate::future::{PollUnpinned, VoidRequest};
+use crate::future::request::listeners::EventTargetResult;
+use crate::future::{PollUnpinned, Request};
 use crate::internal_utils::SystemRepr;
 use crate::primitive::{TryFromJs, TryToJs};
 use fancy_constructor::new;
@@ -27,7 +28,7 @@ pub(crate) enum CursorState {
     TryNext,
 
     /// We are currently reading the next record.
-    ReadingNext(VoidRequest),
+    ReadingNext(Request<EventTargetResult>),
 }
 
 impl BaseCursor {
@@ -68,7 +69,7 @@ impl BaseCursor {
             Ok(())
         } else {
             self.as_sys().advance(step)?;
-            self.req().await
+            self.req().await.map(|_| ())
         }
     }
 
@@ -108,8 +109,8 @@ impl BaseCursor {
         self.as_sys().direction()
     }
 
-    pub(crate) fn req(&self) -> VoidRequest {
-        VoidRequest::new(self.as_sys().req())
+    pub(crate) fn req(&self) -> Request<EventTargetResult> {
+        Request::new(self.as_sys().req())
     }
 
     pub(crate) fn poll_state<R, F>(
@@ -186,7 +187,7 @@ impl BaseCursor {
 
     fn on_req_polled<R, F>(
         &mut self,
-        poll: Poll<crate::Result<()>>,
+        poll: Poll<crate::Result<EventTargetResult>>,
         read_current: F,
     ) -> Poll<crate::Result<Option<R>>>
     where
@@ -196,8 +197,17 @@ impl BaseCursor {
             Poll::Ready(res) => {
                 self.state = CursorState::ReadCurrent;
 
-                Poll::Ready(match res {
-                    Ok(()) => {
+                let should_continue = res.map(|event_result| match event_result {
+                    EventTargetResult::Null => false,
+                    EventTargetResult::Cursor(cursor_sys) => {
+                        self.sys = cursor_sys;
+                        true
+                    }
+                    EventTargetResult::NotNull => true,
+                });
+
+                Poll::Ready(match should_continue {
+                    Ok(true) => {
                         // Firefox implementation: key gets set to undefined on cursor end
                         if self.has_key() {
                             self.read_current(read_current)
@@ -205,6 +215,9 @@ impl BaseCursor {
                             Ok(None)
                         }
                     }
+                    // Chrome implementation: the only way to know if a cursor has finished
+                    // is by reading the value from onsuccess event.target.result
+                    Ok(false) => Ok(None),
                     Err(e) => Err(e),
                 })
             }
