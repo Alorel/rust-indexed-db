@@ -11,6 +11,7 @@ types:
   - ci
   - chore
   - deps
+  - test
   - perf
 scopes:
   - dev
