@@ -54,3 +54,4 @@ runs:
         trivial-types: |
           ci: CI & Build
           build: CI & Build
+          test: Testing
