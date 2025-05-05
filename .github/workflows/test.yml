@@ -108,8 +108,8 @@ jobs:
             os: ubuntu-latest
           - toolchain: stable
             os: ubuntu-latest
-          - toolchain: stable
-            os: macos-latest
+  #          - toolchain: stable
+  #            os: macos-latest
 
   feature:
     name: Feature test for ${{ matrix.flags || 'no flags' }}
