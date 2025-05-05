@@ -42,10 +42,7 @@ jobs:
         run: cargo build --target wasm32-unknown-unknown --locked ${{ inputs.flags }}
 
       - name: Install wasm-pack
-        uses: alorel-actions/cargo-global-dep@v1
-        with:
-          name: wasm-pack
-          version: 0.13.1
+        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
 
       - name: Test (Chrome)
         if: ${{ runner.os != 'macOS' }}
