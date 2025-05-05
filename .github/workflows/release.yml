@@ -10,15 +10,20 @@ env:
   CARGO_INCREMENTAL: 0
 
 jobs:
-  git:
-    name: Git release
+  test:
+    name: Test
+    uses: ./.github/workflows/test.yml
+
+  bump:
+    name: Bump version
+    needs: [ test ]
     runs-on: ubuntu-latest
     environment: github
-    permissions:
-      contents: write
     outputs:
-      issues-closed: ${{ steps.changelog.outputs.issues-closed }}
+      commit: ${{ steps.last-commit.outputs.sha }}
+      changelog: ${{ steps.changelog.outputs.changelog }}
       version: ${{ steps.changelog.outputs.version }}
+      issues-closed: ${{ steps.changelog.outputs.issues-closed }}
     steps:
       - uses: actions/checkout@v4
         name: Checkout
@@ -44,35 +49,81 @@ jobs:
         with:
           release-type: ${{ steps.changelog.outputs.release-type }}
 
-      - name: Git release
-        uses: alorel-actions/cargo/release-git@v2
-        with:
-          version: ${{ steps.changelog.outputs.version }}
-          changelog: ${{ steps.changelog.outputs.changelog }}
+      - name: Commit version bump
+        run: |
+          git commit -m "$(cat <<-END
+          Bump version to ${{ inputs.version }}
 
-  notify:
-    name: Notify closed issues
-    needs:
-      - git
-    if: ${{ needs.git.outputs.issues-closed }}
+          [ci skip]
+          END
+          )"
+
+      - name: Git tag
+        run: git tag "${{ inputs.version }}"
+
+      - name: Get last commit sha
+        id: last-commit
+        run: echo "sha=$(git log -n 1 --pretty=format:%H)" >> $GITHUB_OUTPUT
+
+      - name: Push commit
+        run: git push
+
+      - name: Push tag
+        run: git push --tags
+
+  release-cargo:
+    name: Release (Cargo)
+    needs: [ bump ]
     runs-on: ubuntu-latest
-    environment: github
+    environment: crates-io
+    env:
+      CARGO_INCREMENTAL: 0
+    steps:
+      - uses: actions/checkout@v4
+        name: Checkout
+        with:
+          fetch-depth: 1
+          ref: ${{ needs.bump.outputs.commit }}
+
+      - name: Init toolchain
+        uses: alorel-actions/cargo/init@v2
+        with:
+          cache-prefix: release
+
+      - name: Publish crate
+        run: cargo publish --locked --token ${{ secrets.CRATES_IO_TOKEN }}
+
+  release-github:
+    name: Release (GitHub)
+    needs: [ release-cargo, bump ]
+    runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@v4
         name: Checkout
         with:
-          token: ${{ secrets.GH_TOKEN }}
+          fetch-depth: 1
+          ref: ${{ needs.bump.outputs.commit }}
 
       - name: Git identity
         uses: alorel-actions/git-ident@v1
 
+      - name: Create release
+        uses: ncipollo/release-action@36e78ab6296394ce36f72f6488e68c2353b50514
+        with:
+          allowUpdates: false
+          prerelease: false
+          generateReleaseNotes: false
+          commit: ${{ needs.bump.outputs.commit }}
+          tag: ${{ needs.bump.outputs.version }}
+          body: ${{ needs.bump.outputs.changelog }}
+
       - name: Notify
-        if: ${{ needs.git.outputs.issues-closed }}
+        if: ${{ needs.bump.outputs.issues-closed }}
         uses: alorel-actions/semantic-release-lite/notify@v0
         with:
-          tag: ${{ needs.git.outputs.version }}
-          issues: ${{ needs.git.outputs.issues-closed }}
+          tag: ${{ needs.bump.outputs.version }}
+          issues: ${{ needs.bump.outputs.issues-closed }}
           allow-out-of-sync: true
-          gh-token: ${{ secrets.GH_TOKEN }}
+          gh-token: ${{ github.token }}
