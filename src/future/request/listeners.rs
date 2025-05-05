@@ -39,7 +39,7 @@ impl Listeners {
 
             let _ = tx.try_send(match non_null_result {
                 None => EventTargetResult::Null,
-                #[cfg_attr(not(feature = "cursors"), expect(unused_variables))]
+                #[cfg_attr(not(feature = "cursors"), allow(unused_variables))]
                 Some(val) => {
                     cfg_if! {
                         if #[cfg(feature = "cursors")] {
