@@ -1,6 +1,5 @@
 use super::super::traits::*;
 use crate::error::UnexpectedDataError;
-use cfg_if::cfg_if;
 use std::task::{Context, Poll};
 use tokio::sync::mpsc;
 use wasm_bindgen::prelude::*;
@@ -39,19 +38,13 @@ impl Listeners {
 
             let _ = tx.try_send(match non_null_result {
                 None => EventTargetResult::Null,
-                #[cfg_attr(not(feature = "cursors"), expect(unused_variables))]
-                Some(val) => {
-                    cfg_if! {
-                        if #[cfg(feature = "cursors")] {
-                             match val.dyn_into::<crate::cursor::CursorSys>() {
-                                Ok(cursor) => EventTargetResult::Cursor(cursor),
-                                Err(_) => EventTargetResult::NotNull,
-                            }
-                        } else {
-                            EventTargetResult::NotNull
-                        }
-                    }
-                }
+                #[cfg(feature = "cursors")]
+                Some(val) => match val.dyn_into::<crate::cursor::CursorSys>() {
+                    Ok(cursor) => EventTargetResult::Cursor(cursor),
+                    Err(_) => EventTargetResult::NotNull,
+                },
+                #[cfg(not(feature = "cursors"))]
+                Some(_val) => EventTargetResult::NotNull,
             });
         }));
 

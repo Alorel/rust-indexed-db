@@ -104,6 +104,8 @@ jobs:
         include:
           - toolchain: nightly-2025-03-15
             os: ubuntu-latest
+          - toolchain: 1.75.0
+            os: ubuntu-latest
           - toolchain: 1.81.0
             os: ubuntu-latest
           - toolchain: stable
