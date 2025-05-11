@@ -286,7 +286,7 @@ dependencies = [
 
 [[package]]
 name = "indexed_db_futures"
-version = "0.6.3"
+version = "0.6.4"
 dependencies = [
  "accessory",
  "cfg-if",
