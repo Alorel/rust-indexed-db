@@ -1,3 +1,5 @@
+#![allow(clippy::uninlined_format_args)]
+
 macro_rules! assert_dom_exc {
     ($err: expr, $dom_exc: ident) => {{
         let err = $err;
@@ -156,6 +158,7 @@ pub mod utils;
 pub mod database;
 #[cfg(feature = "dates")]
 pub mod date;
+pub mod example_reproductions;
 #[cfg(feature = "indices")]
 pub mod index;
 pub mod key_path;

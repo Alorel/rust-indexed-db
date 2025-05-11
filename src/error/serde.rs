@@ -1,4 +1,5 @@
 use cfg_if::cfg_if;
+use std::fmt;
 
 use super::Error;
 use super::SerialisationError;
@@ -15,27 +16,22 @@ cfg_if! {
 /// [`serde_wasm_bindgen::Error`](https://docs.rs/serde-wasm-bindgen/0.6.5/serde_wasm_bindgen/struct.Error.html).
 ///
 /// Is an empty struct if the `serde` feature is not enabled.
-#[cfg_attr(feature = "serde", derive(derive_more::From))]
+#[derive(Debug)]
+#[cfg_attr(feature = "serde", derive(derive_more::From), repr(transparent))]
 #[cfg_attr(not(feature = "serde"), derive(StructName))]
 pub struct SerdeError(#[cfg(feature = "serde")] BaseError);
 
-macro_rules! display_like {
-    ($for: ty > $($which: ident),+) => {
-        $(impl std::fmt::$which for $for {
-            fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
-                ::cfg_if::cfg_if! {
-                    if #[cfg(feature = "serde")] {
-                        std::fmt::$which::fmt(&self.0, f)
-                    } else {
-                        f.write_str(&<Self as StructName>::TYPE_NAME)
-                    }
-                }
+impl fmt::Display for SerdeError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        ::cfg_if::cfg_if! {
+            if #[cfg(feature = "serde")] {
+                fmt::Display::fmt(&self.0, f)
+            } else {
+                f.write_str(<Self as StructName>::TYPE_NAME)
             }
-        })+
-    };
+        }
+    }
 }
-
-display_like!(SerdeError > Debug, Display);
 
 impl ::std::error::Error for SerdeError {
     #[inline]

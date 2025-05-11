@@ -93,14 +93,18 @@
 //!       Ok(())
 //!     })
 //!     .with_on_upgrade_needed_fut(|event, db| async move {
-//!         match (event.old_version(), event.new_version()) {
-//!             (0.0, Some(1.0)) => {
+//!         // Convert versions from floats to integers to allow using them in match expressions
+//!         let old_version = event.old_version() as u64;
+//!         let new_version = event.new_version().map(|v| v as u64);
+//!
+//!         match (old_version, new_version) {
+//!             (0, Some(1)) => {
 //!                 db.create_object_store("my_store")
 //!                     .with_auto_increment(true)
 //!                     .build()?;
 //!             }
-//!             (prev, Some(2.0)) => {
-//!                 if prev == 1.0 {
+//!             (prev, Some(2)) => {
+//!                 if prev == 1 {
 //!                     if let Err(e) = db.delete_object_store("my_store") {
 //!                       log::error!("Error deleting v1 object store: {}", e);
 //!                     }
@@ -108,6 +112,7 @@
 //!
 //!                 // Create an object store and await its transaction before inserting data.
 //!                 db.create_object_store("my_other_store")
+//!                   .with_auto_increment(true)
 //!                   .build()?
 //!                   .transaction()
 //!                   .on_done()?
