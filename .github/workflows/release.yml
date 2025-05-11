@@ -119,11 +119,26 @@ jobs:
           tag: ${{ needs.bump.outputs.version }}
           body: ${{ needs.bump.outputs.changelog }}
 
-      - name: Notify
-        if: ${{ needs.bump.outputs.issues-closed }}
-        uses: alorel-actions/semantic-release-lite/notify@v0
+  notify-issues:
+    name: Release (Notify)
+    runs-on: ubuntu-latest
+    environment: github
+    needs: [ release-github, bump ]
+    if: ${{ needs.bump.outputs.issues-closed }}
+    steps:
+      - uses: actions/checkout@v4
+        name: Checkout
+        with:
+          fetch-depth: 1
+          ref: ${{ needs.bump.outputs.commit }}
+          token: ${{ secrets.GH_TOKEN }}
+
+      - name: Git identity
+        uses: alorel-actions/git-ident@v1
+
+      - uses: alorel-actions/semantic-release-lite/notify@v0
         with:
           tag: ${{ needs.bump.outputs.version }}
           issues: ${{ needs.bump.outputs.issues-closed }}
           allow-out-of-sync: true
-          gh-token: ${{ github.token }}
+          gh-token: ${{ secrets.GH_TOKEN }}
