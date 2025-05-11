@@ -22,21 +22,32 @@ use indexed_db_futures::database::Database;
 use indexed_db_futures::prelude::*;
 use indexed_db_futures::transaction::TransactionMode;
 
-#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(Serialize, Deserialize)]
 struct MySerdeType(u8, String);
+
+#[derive(Deserialize)]
+#[serde(untagged)]
+enum ObjectOrString {
+    Object(MySerdeType),
+    String(String),
+}
 
 async fn main() -> indexed_db_futures::OpenDbResult<()> {
     let db = Database::open("my_db")
         .with_version(2u8)
         .with_on_upgrade_needed(|event, db| {
+            // Convert versions from floats to integers to allow using them in match expressions
+            let old_version = event.old_version() as u64;
+            let new_version = event.new_version().map(|v| v as u64);
+
             match (event.old_version(), event.new_version()) {
-                (0.0, Some(1.0)) => {
+                (0, Some(1)) => {
                     db.create_object_store("my_store")
                         .with_auto_increment(true)
                         .build()?;
                 }
-                (prev, Some(2.0)) => {
-                    if prev == 1.0 {
+                (prev, Some(2)) => {
+                    if prev == 1 {
                         let _ = db.delete_object_store("my_store");
                     }
 
@@ -59,10 +70,15 @@ async fn main() -> indexed_db_futures::OpenDbResult<()> {
 
     store
         .put("a primitive value that doesn't need serde")
+        .with_key("my_key")
         .await?;
 
-    // awaiting individual requests is optional - they still go out
-    store.put(MySerdeType(10, "foos".into())).serde()?;
+    // Awaiting individual requests is optional - they still go out
+    store
+        .put(MySerdeType(10, "foos".into()))
+        .with_key("my_serde_key")
+        .with_key_type::<String>() // `serde` keys must be deserialisable; String is, but the &str above isn't
+        .serde()?;
 
     // Unlike JS, transactions ROLL BACK INSTEAD OF COMMITTING BY DEFAULT
     transaction.commit().await?;
@@ -70,17 +86,31 @@ async fn main() -> indexed_db_futures::OpenDbResult<()> {
     // Read some data
     let transaction = db.transaction("my_other_store").build()?;
     let store = transaction.object_store("my_other_store")?;
-    let Some(mut cursor) = store.open_cursor().await? else {
-        // `None` is returned if the cursor is empty
-        return Ok(());
-    };
 
-    loop {
-        match cursor.next_record_ser::<MySerdeType>().await {
-            Ok(Some(record)) => handle_record(record),
-            Ok(None) => break,
-            Err(e) => handle_error(e),
+    // `None` is returned if the cursor is empty
+    if let Some(mut cursor) = store.open_cursor().await? {
+        // Use a limited loop in case we made a mistake and result in an infinite loop
+        for _ in 0..5 {
+            // We inserted a serde record and a primitive one so we need to deserialise as an enum that supports both
+            match cursor.next_record_ser::<ObjectOrString>().await {
+                Ok(Some(record)) => match record {
+                    ObjectOrString::Object(serde_record) => {
+                        assert_eq!(serde_record.0, 10);
+                        assert_eq!(serde_record.1, "foos");
+                    }
+                    ObjectOrString::String(string_record) => {
+                        assert_eq!(
+                            string_record.as_str(),
+                            "a primitive value that doesn't need serde"
+                        );
+                    }
+                },
+                Err(e) => return Err(e.into()),
+                Ok(None) => return Ok(()), // reached cursor end
+            }
         }
+
+        panic!("Got an infinite loop!");
     }
 
     Ok(())
