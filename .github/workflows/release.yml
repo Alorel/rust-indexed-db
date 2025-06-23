@@ -110,7 +110,7 @@ jobs:
         uses: alorel-actions/git-ident@v1
 
       - name: Create release
-        uses: ncipollo/release-action@36e78ab6296394ce36f72f6488e68c2353b50514
+        uses: ncipollo/release-action@0683ea35579ef9c26bc4ec485524a5a65979e1d5
         with:
           allowUpdates: false
           prerelease: false
