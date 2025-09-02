@@ -1,7 +1,7 @@
 //! An [`IDBTransaction`](https://developer.mozilla.org/en-US/docs/Web/API/IDBTransaction) implementation.
 
 use crate::database::Database;
-use crate::error::Error;
+use crate::error::{Error, SimpleValueError, UnexpectedDataError};
 use crate::internal_utils::{StructName, SystemRepr};
 pub use base::TransactionRef;
 use listeners::TxListeners;
@@ -10,6 +10,7 @@ pub use options::{TransactionDurability, TransactionOptions};
 use std::fmt::{Debug, Formatter};
 use std::ops::Deref;
 pub(crate) use tx_sys::TransactionSys;
+use wasm_bindgen::JsCast;
 pub use web_sys::IdbTransactionMode as TransactionMode;
 
 mod base;
@@ -90,10 +91,30 @@ impl<'a> Transaction<'a> {
         }
     }
 
+    /// Create a [`Transaction`] from an [`web_sys::IdbVersionChangeEvent`].
+    ///
+    /// This is useful for extracting the transaction being used to upgrade
+    /// the database.
+    #[allow(unused)]
+    pub(crate) fn from_raw_version_change_event(
+        db: &'a Database,
+        event: &web_sys::IdbVersionChangeEvent,
+    ) -> crate::Result<Self> {
+        let inner = match event.target() {
+            Some(target) => match target.dyn_ref::<web_sys::IdbOpenDbRequest>() {
+                Some(req) => req
+                    .transaction()
+                    .ok_or(Error::from(UnexpectedDataError::TransactionNotFound)),
+                None => Err(SimpleValueError::DynCast(target.unchecked_into()).into()),
+            },
+            None => Err(UnexpectedDataError::NoEventTarget.into()),
+        }?;
+        Ok(Self::new(db, inner))
+    }
+
     /// Set the behavior for when the [`Transaction`] is dropped
-    pub fn on_drop(mut self, on_drop: OnTransactionDrop) -> Self {
+    pub fn on_drop(&mut self, on_drop: OnTransactionDrop) {
         self.on_drop = on_drop;
-        self
     }
 
     /// Rolls back all the changes to objects in the database associated with this transaction.

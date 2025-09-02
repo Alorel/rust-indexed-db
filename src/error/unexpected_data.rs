@@ -22,6 +22,10 @@ pub enum UnexpectedDataError {
     #[error("`Future` polled unexpectedly.")]
     PollState,
 
+    /// Expected a Transaction to exist, but it was not found.
+    #[error("Expected the Transaction to exist, but it was not found.")]
+    TransactionNotFound,
+
     /// Expected a Transaction to be aborted, but it was committed.
     #[error("Expected the Transaction to be aborted, but it was committed.")]
     TransactionCommitted,
