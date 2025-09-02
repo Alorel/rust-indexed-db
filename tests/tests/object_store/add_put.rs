@@ -11,7 +11,8 @@ macro_rules! common_tests {
 
         #[wasm_bindgen_test]
         pub async fn data_error_inline_key() {
-            let db = random_db_with_init(move |_, db| {
+            let db = random_db_with_init(move |_, tx| {
+                let db = tx.db();
                 db.create_object_store(&db.name())
                     .with_key_path("foo".into())
                     .build()?;
@@ -64,7 +65,8 @@ macro_rules! common_tests {
         #[cfg(feature = "serde")]
         #[wasm_bindgen_test]
         pub async fn serde_object_nesting() {
-            let db = random_db_with_init(move |_, db| {
+            let db = random_db_with_init(move |_, tx| {
+                let db = tx.db();
                 db.create_object_store(&db.name())
                     .with_key_path("foo".into())
                     .build()?;

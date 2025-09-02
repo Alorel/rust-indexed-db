@@ -4,7 +4,8 @@ use idb_fut::database::Database;
 #[wasm_bindgen_test]
 pub async fn constraint_error() {
     let err = Database::open(random_str())
-        .with_on_upgrade_needed(move |_, db| {
+        .with_on_upgrade_needed(move |_, tx| {
+            let db = tx.db();
             let name = db.name();
             let store = db
                 .create_object_store(&name)

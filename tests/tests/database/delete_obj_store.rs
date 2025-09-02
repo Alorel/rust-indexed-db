@@ -12,7 +12,8 @@ pub async fn invalid_state_error() {
 #[wasm_bindgen_test]
 pub async fn not_found_error() {
     let err = Database::open(random_str())
-        .with_on_upgrade_needed(move |_, db| {
+        .with_on_upgrade_needed(move |_, tx| {
+            let db = tx.db();
             db.delete_object_store(&db.name())?;
             Ok(())
         })
@@ -28,7 +29,8 @@ pub async fn happy_path() {
     let n1_clone = n1.clone();
 
     let db = Database::open(&n1)
-        .with_on_upgrade_needed(move |_, db| {
+        .with_on_upgrade_needed(move |_, tx| {
+            let db = tx.db();
             db.create_object_store(&n1_clone).build()?;
             db.create_object_store(&random_str())
                 .build()?

@@ -95,7 +95,6 @@ impl<'a> Transaction<'a> {
     ///
     /// This is useful for extracting the transaction being used to upgrade
     /// the database.
-    #[allow(unused)]
     pub(crate) fn from_raw_version_change_event(
         db: &'a Database,
         event: &web_sys::IdbVersionChangeEvent,

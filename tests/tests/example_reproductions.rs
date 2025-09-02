@@ -28,7 +28,8 @@ pub async fn multi_threaded_executor() {
     }
 
     let db = Database::open("my_db_multi_threaded_executor")
-        .with_on_upgrade_needed(|_, db| {
+        .with_on_upgrade_needed(|_, tx| {
+            let db = tx.db();
             db.create_object_store("my_store")
                 .with_auto_increment(true)
                 .build()?;
@@ -111,7 +112,8 @@ pub async fn rw_serde() {
     }
 
     let db = Database::open("example_rw_serde")
-        .with_on_upgrade_needed(|_, db| {
+        .with_on_upgrade_needed(|_, tx| {
+            let db = tx.db();
             db.create_object_store("users")
                 .with_key_path("id".into())
                 .build()?;
@@ -159,7 +161,8 @@ pub async fn readme_example() {
     async fn main() -> indexed_db_futures::OpenDbResult<()> {
         let db = Database::open("my_db_readme_example")
             .with_version(2u8)
-            .with_on_upgrade_needed(|event, db| {
+            .with_on_upgrade_needed(|event, tx| {
+                let db = tx.db();
                 // Convert versions from floats to integers to allow using them in match expressions
                 let old_version = event.old_version() as u64;
                 let new_version = event.new_version().map(|v| v as u64);
@@ -262,7 +265,8 @@ pub async fn iterating_a_cursor() {
 
     let db = Database::open("example_iterating_a_cursor")
         .with_version(2u8)
-        .with_on_upgrade_needed(|_, db| {
+        .with_on_upgrade_needed(|_, tx| {
+            let db = tx.db();
             db.create_object_store("my_store").build()?;
             Ok(())
         })
@@ -329,7 +333,8 @@ pub async fn iterating_index_as_a_stream() {
     }
 
     let db = Database::open("example_iterating_index_as_a_stream")
-        .with_on_upgrade_needed(|_, db| {
+        .with_on_upgrade_needed(|_, tx| {
+            let db = tx.db();
             let store = db
                 .create_object_store("my_store")
                 .with_key_path("id".into())

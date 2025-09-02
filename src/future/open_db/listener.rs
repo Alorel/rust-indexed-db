@@ -1,5 +1,6 @@
 use crate::database::{Database, VersionChangeEvent};
 use crate::error::{Error, UnexpectedDataError};
+use crate::transaction::{OnTransactionDrop, Transaction};
 use internal_macros::generic_bounds;
 use std::fmt::{Debug, Display, Formatter};
 use std::mem;
@@ -56,9 +57,16 @@ impl OpenDbListener {
             #[cfg(feature = "async-upgrade")]
             async_notify: Self::fake_rx(),
             listener: Closure::once(move |evt: web_sys::IdbVersionChangeEvent| {
-                let res = Database::from_event(&evt)
-                    .and_then(move |db| callback(VersionChangeEvent::new(evt), db));
-
+                let res = Database::from_event(&evt).and_then(|db| {
+                    Transaction::from_raw_version_change_event(&db, &evt).and_then(|mut tx| {
+                        callback(VersionChangeEvent::new(evt), &tx).inspect(|_| {
+                            // If the callback succeeded, we want to ensure that
+                            // the transaction is committed when dropped and not
+                            // aborted.
+                            tx.on_drop(OnTransactionDrop::Commit);
+                        })
+                    })
+                });
                 Self::handle_result(LBL_UPGRADE, &status, res)
             }),
         }
