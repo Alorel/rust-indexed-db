@@ -35,6 +35,27 @@ pub struct Transaction<'a> {
     listeners: TxListeners<'a>,
 
     done: bool,
+    on_drop: OnTransactionDrop,
+}
+
+/// An enum representing the possible behavior which a [`Transaction`] may exhibit
+/// when it is dropped.
+///
+/// Note that unlike JavaScript's [`IDBTransaction`][1], this crate's [`Transaction`]
+/// defaults to aborting - i.e., [`OnTransactionDrop::Abort`] - instead of
+/// committing - i.e., [`OnTransactionDrop::Commit`] - the transaction!
+///
+/// [1]: https://developer.mozilla.org/en-US/docs/Web/API/IDBTransaction
+#[derive(Debug, Copy, Clone)]
+pub enum OnTransactionDrop {
+    /// Abort the [`Transaction`] when it is dropped. This is the default
+    /// behavior of [`Transaction`].
+    Abort,
+    /// Commit the [`Transaction`] when it is dropped. This is the default
+    /// behavior of an [`IDBTransaction`][1] in JavaScript.
+    ///
+    /// [1]: https://developer.mozilla.org/en-US/docs/Web/API/IDBTransaction
+    Commit,
 }
 
 /// A [transaction's](Transaction) result.
@@ -65,7 +86,14 @@ impl<'a> Transaction<'a> {
         Self {
             listeners: TxListeners::new(db, inner),
             done: false,
+            on_drop: OnTransactionDrop::Abort,
         }
+    }
+
+    /// Set the behavior for when the [`Transaction`] is dropped
+    pub fn on_drop(mut self, on_drop: OnTransactionDrop) -> Self {
+        self.on_drop = on_drop;
+        self
     }
 
     /// Rolls back all the changes to objects in the database associated with this transaction.
@@ -115,7 +143,10 @@ impl Drop for Transaction<'_> {
         self.listeners.free_listeners();
 
         if !self.done {
-            let _ = self.as_sys().abort();
+            let _ = match self.on_drop {
+                OnTransactionDrop::Abort => self.as_sys().abort(),
+                OnTransactionDrop::Commit => self.as_sys().do_commit(),
+            };
         }
     }
 }
@@ -126,6 +157,7 @@ impl Debug for Transaction<'_> {
             .field("transaction", self.as_sys())
             .field("db", self.db())
             .field("done", &self.done)
+            .field("on_drop", &self.on_drop)
             .finish()
     }
 }
