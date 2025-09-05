@@ -1,7 +1,5 @@
 use crate::commons::FnTarget;
 use crate::TokenStream1;
-use macroific::prelude::*;
-use proc_macro2::Ident;
 use quote::ToTokens;
 use syn::{parse_quote, Error, WherePredicate};
 
@@ -22,7 +20,7 @@ macro_rules! make_opts {
         ///
         /// | Option | Type |
         /// |--------|-----------|
-        $($(#[doc = concat!(" | `", stringify!($extra_opt), "` | `", stringify!($extra_ty), "` |")])+)+
+        $($(#[doc = concat!(" | `", stringify!($extra_opt), "` | `", stringify!($extra_ty), "` |")])+)*
         #[derive(::macroific::attr_parse::AttributeOptions)]
         pub(super) struct $struct_name {
             $($($opt: ::syn::punctuated::Punctuated<proc_macro2::Ident, ::syn::Token![,]>,)+)+
@@ -54,9 +52,7 @@ make_opts!(Opts => {
     db_version => crate::factory::DBVersion,
     blocked_cb => ::core::ops::FnOnce(crate::database::VersionChangeEvent) -> crate::Result<()> + 'static,
     upgrade_cb => ::core::ops::FnOnce(crate::database::VersionChangeEvent, &crate::transaction::Transaction<'_>) -> crate::Result<()> + 'static,
-    [custom] => {
-        upgrade_async_cb => UpgradeAsyncCb,
-    },
+    upgrade_async_cb => ::core::ops::AsyncFnOnce(crate::database::VersionChangeEvent, crate::database::Database) -> crate::Result<()> + 'static,
 });
 
 #[inline]
@@ -70,31 +66,6 @@ pub(super) fn exec(spec: TokenStream1, target: TokenStream1) -> TokenStream1 {
             Err(e) => on_err(target, e),
         },
         Err(e) => on_err(target, e),
-    }
-}
-
-#[derive(ParseOption)]
-struct UpgradeAsyncCb {
-    #[attr_opts(default = false)]
-    fun: Ident,
-
-    #[attr_opts(default = false)]
-    fut: Ident,
-}
-
-impl UpgradeAsyncCb {
-    fn extend_target(self, target: &mut FnTarget) {
-        let Self { fun, fut } = self;
-        let wheres = [
-            parse_quote!(#fun: ::core::ops::FnOnce(crate::database::VersionChangeEvent, crate::database::Database) -> #fut + 'static),
-            parse_quote!(#fut: ::core::future::Future<Output = crate::Result<()>> + 'static),
-        ];
-
-        target
-            .generics_mut()
-            .make_where_clause()
-            .predicates
-            .extend::<[WherePredicate; 2]>(wheres);
     }
 }
 

@@ -44,14 +44,14 @@ pub async fn multi_threaded_executor() {
 #[wasm_bindgen_test]
 #[cfg(all(feature = "tx-done", feature = "async-upgrade"))]
 pub async fn opening_a_database_and_making_some_schema_changes() {
-    use indexed_db_futures::database::Database;
+    use indexed_db_futures::database::{Database, VersionChangeEvent};
     use indexed_db_futures::prelude::*;
     use indexed_db_futures::transaction::TransactionMode;
 
     let _ = Database::open("opening_a_database_and_making_some_schema_changes")
         .with_version(2u8)
         .with_on_blocked(|_| Ok(()))
-        .with_on_upgrade_needed_fut(|event, db| {
+        .with_on_upgrade_needed_fut(|event: VersionChangeEvent, db: Database| {
             // Convert versions from floats to integers to allow using them in match expressions
             let old_version = event.old_version() as u64;
             let new_version = event.new_version().map(|v| v as u64);

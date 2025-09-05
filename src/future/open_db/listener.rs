@@ -162,8 +162,8 @@ const _: () = {
             tokio::sync::mpsc::unbounded_channel().1
         }
 
-        #[generic_bounds(upgrade_async_cb(fun(Fn), fut(Fut)))]
-        pub(crate) fn new_upgrade_fut<Fn, Fut>(callback: Fn) -> Self {
+        #[generic_bounds(upgrade_async_cb(Fn))]
+        pub(crate) fn new_upgrade_fut<Fn>(callback: Fn) -> Self {
             let status = Status::new();
             let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
             Self {
