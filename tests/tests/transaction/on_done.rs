@@ -40,7 +40,8 @@ pub mod async_upgrade {
 
         let err = Database::open(random_str())
             .with_version(2u8)
-            .with_on_upgrade_needed_fut(move |_, db: Database| async move {
+            .with_on_upgrade_needed_fut(async |_, tx| {
+                let db = tx.db();
                 // Create an object store and await its transaction
                 db.create_object_store(STORE_NAME)
                     .with_auto_increment(true)
@@ -74,7 +75,8 @@ pub mod async_upgrade {
             .with_version(2u8)
             .with_on_upgrade_needed_fut({
                 let events = Arc::clone(&events);
-                move |_, db: Database| async move {
+                async move |_, tx| {
+                    let db = tx.db();
                     events.lock().unwrap().push(Event::CallbackStart);
 
                     // Create an object store and await its transaction

@@ -176,11 +176,21 @@ const _: () = {
                     };
 
                     Self::set_status(&status, Status::Pending, LBL_UPGRADE)?;
-                    let fut = callback(VersionChangeEvent::new(evt), db);
-
                     wasm_bindgen_futures::spawn_local(async move {
-                        let result = match fut.await {
-                            Ok(()) => Status::Ok,
+                        let db = db;
+                        let result = match Transaction::from_raw_version_change_event(&db, &evt) {
+                            Ok(mut transaction) => {
+                                match callback(VersionChangeEvent::new(evt), &transaction).await {
+                                    Ok(_) => {
+                                        // If the callback succeeded, we want to ensure that
+                                        // the transaction is committed when dropped and not
+                                        // aborted.
+                                        transaction.on_drop(OnTransactionDrop::Commit);
+                                        Status::Ok
+                                    }
+                                    Err(e) => Status::Err(e),
+                                }
+                            }
                             Err(e) => Status::Err(e),
                         };
                         let _ = Self::set_status(&status, result, LBL_UPGRADE);

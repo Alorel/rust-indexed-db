@@ -52,7 +52,7 @@ make_opts!(Opts => {
     db_version => crate::factory::DBVersion,
     blocked_cb => ::core::ops::FnOnce(crate::database::VersionChangeEvent) -> crate::Result<()> + 'static,
     upgrade_cb => ::core::ops::FnOnce(crate::database::VersionChangeEvent, &crate::transaction::Transaction<'_>) -> crate::Result<()> + 'static,
-    upgrade_async_cb => ::core::ops::AsyncFnOnce(crate::database::VersionChangeEvent, crate::database::Database) -> crate::Result<()> + 'static,
+    upgrade_async_cb => ::core::ops::AsyncFnOnce(crate::database::VersionChangeEvent, &crate::transaction::Transaction<'_>) -> crate::Result<()> + 'static,
 });
 
 #[inline]

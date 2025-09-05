@@ -44,54 +44,53 @@ pub async fn multi_threaded_executor() {
 #[wasm_bindgen_test]
 #[cfg(all(feature = "tx-done", feature = "async-upgrade"))]
 pub async fn opening_a_database_and_making_some_schema_changes() {
-    use indexed_db_futures::database::{Database, VersionChangeEvent};
+    use indexed_db_futures::database::Database;
     use indexed_db_futures::prelude::*;
     use indexed_db_futures::transaction::TransactionMode;
 
     let _ = Database::open("opening_a_database_and_making_some_schema_changes")
         .with_version(2u8)
         .with_on_blocked(|_| Ok(()))
-        .with_on_upgrade_needed_fut(|event: VersionChangeEvent, db: Database| {
+        .with_on_upgrade_needed_fut(async |event, tx| {
+            let db = tx.db();
             // Convert versions from floats to integers to allow using them in match expressions
             let old_version = event.old_version() as u64;
             let new_version = event.new_version().map(|v| v as u64);
 
-            async move {
-                match (old_version, new_version) {
-                    (0, Some(1)) => {
-                        db.create_object_store("my_store")
-                            .with_auto_increment(true)
-                            .build()?;
-                    }
-                    (prev, Some(2)) => {
-                        if prev == 1 {
-                            db.delete_object_store("my_store")?;
-                        }
-
-                        // Create an object store and await its transaction before inserting data.
-                        db.create_object_store("my_other_store")
-                            .with_auto_increment(true)
-                            .build()?
-                            .transaction()
-                            .on_done()?
-                            .await
-                            .into_result()?;
-
-                        //- Start a new transaction & add some data
-                        let tx = db
-                            .transaction("my_other_store")
-                            .with_mode(TransactionMode::Readwrite)
-                            .build()?;
-                        let store = tx.object_store("my_other_store")?;
-                        store.add("foo").await?;
-                        store.add("bar").await?;
-                        tx.commit().await?;
-                    }
-                    _ => {}
+            match (old_version, new_version) {
+                (0, Some(1)) => {
+                    db.create_object_store("my_store")
+                        .with_auto_increment(true)
+                        .build()?;
                 }
+                (prev, Some(2)) => {
+                    if prev == 1 {
+                        db.delete_object_store("my_store")?;
+                    }
 
-                Ok(())
+                    // Create an object store and await its transaction before inserting data.
+                    db.create_object_store("my_other_store")
+                        .with_auto_increment(true)
+                        .build()?
+                        .transaction()
+                        .on_done()?
+                        .await
+                        .into_result()?;
+
+                    //- Start a new transaction & add some data
+                    let tx = db
+                        .transaction("my_other_store")
+                        .with_mode(TransactionMode::Readwrite)
+                        .build()?;
+                    let store = tx.object_store("my_other_store")?;
+                    store.add("foo").await?;
+                    store.add("bar").await?;
+                    tx.commit().await?;
+                }
+                _ => {}
             }
+
+            Ok(())
         })
         .await
         .expect("Error opening DB");
