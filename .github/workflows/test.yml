@@ -41,7 +41,6 @@ jobs:
         uses: alorel-actions/cargo/init@v2
         id: toolchain
         with:
-          toolchain: nightly-2024-10-18
           cache-prefix: doc
           local: true
 
