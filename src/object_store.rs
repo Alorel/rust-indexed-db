@@ -56,7 +56,7 @@ impl<'a> ObjectStore<'a> {
         ConstraintError,
     ))]
     #[inline]
-    pub fn add<V>(&self, value: V) -> Add<V> {
+    pub fn add<V>(&self, value: V) -> Add<'_, V> {
         Add::new(self, value)
     }
 
@@ -80,7 +80,7 @@ impl<'a> ObjectStore<'a> {
         ConstraintError,
     ))]
     #[inline]
-    pub fn put<V>(&self, value: V) -> Put<V> {
+    pub fn put<V>(&self, value: V) -> Put<'_, V> {
         Put::new(self, value)
     }
 
@@ -117,7 +117,7 @@ impl<'a> ObjectStore<'a> {
         InvalidStateError,
         DataErrorDelete,
     ))]
-    pub fn delete<K, I>(&self, key_range: I) -> Delete<K>
+    pub fn delete<K, I>(&self, key_range: I) -> Delete<'_, K>
     where
         I: Into<KeyRange<K>>,
     {

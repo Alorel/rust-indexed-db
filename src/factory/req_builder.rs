@@ -102,9 +102,9 @@ impl<N, V, B, U, Fa> OpenDbRequestBuilder<N, V, B, U, Fa> {
 
     /// Set the [upgradeneeded](https://developer.mozilla.org/en-US/docs/Web/API/IDBOpenDBRequest/upgradeneeded_event)
     /// event handler that returns a `Future`.
-    #[generic_bounds(upgrade_async_cb(fun(U2), fut(U2Fut)))]
+    #[generic_bounds(upgrade_async_cb(U2))]
     #[cfg(feature = "async-upgrade")]
-    pub fn with_on_upgrade_needed_fut<U2, U2Fut>(
+    pub fn with_on_upgrade_needed_fut<U2>(
         self,
         on_upgrade_needed: U2,
     ) -> OpenDbRequestBuilder<N, V, B, OpenDbListener, Fa> {

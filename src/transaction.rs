@@ -1,7 +1,7 @@
 //! An [`IDBTransaction`](https://developer.mozilla.org/en-US/docs/Web/API/IDBTransaction) implementation.
 
 use crate::database::Database;
-use crate::error::Error;
+use crate::error::{Error, SimpleValueError, UnexpectedDataError};
 use crate::internal_utils::{StructName, SystemRepr};
 pub use base::TransactionRef;
 use listeners::TxListeners;
@@ -10,6 +10,7 @@ pub use options::{TransactionDurability, TransactionOptions};
 use std::fmt::{Debug, Formatter};
 use std::ops::Deref;
 pub(crate) use tx_sys::TransactionSys;
+use wasm_bindgen::JsCast;
 pub use web_sys::IdbTransactionMode as TransactionMode;
 
 mod base;
@@ -35,6 +36,28 @@ pub struct Transaction<'a> {
     listeners: TxListeners<'a>,
 
     done: bool,
+    on_drop: OnTransactionDrop,
+}
+
+/// An enum representing the possible behavior which a [`Transaction`] may exhibit
+/// when it is dropped.
+///
+/// Note that unlike JavaScript's [`IDBTransaction`][1], this crate's [`Transaction`]
+/// defaults to aborting - i.e., [`OnTransactionDrop::Abort`] - instead of
+/// committing - i.e., [`OnTransactionDrop::Commit`] - the transaction!
+///
+/// [1]: https://developer.mozilla.org/en-US/docs/Web/API/IDBTransaction
+#[derive(Debug, Copy, Clone, Default)]
+pub enum OnTransactionDrop {
+    /// Abort the [`Transaction`] when it is dropped. This is the default
+    /// behavior of [`Transaction`].
+    #[default]
+    Abort,
+    /// Commit the [`Transaction`] when it is dropped. This is the default
+    /// behavior of an [`IDBTransaction`][1] in JavaScript.
+    ///
+    /// [1]: https://developer.mozilla.org/en-US/docs/Web/API/IDBTransaction
+    Commit,
 }
 
 /// A [transaction's](Transaction) result.
@@ -65,7 +88,33 @@ impl<'a> Transaction<'a> {
         Self {
             listeners: TxListeners::new(db, inner),
             done: false,
+            on_drop: OnTransactionDrop::default(),
         }
+    }
+
+    /// Create a [`Transaction`] from an [`web_sys::IdbVersionChangeEvent`].
+    ///
+    /// This is useful for extracting the transaction being used to upgrade
+    /// the database.
+    pub(crate) fn from_raw_version_change_event(
+        db: &'a Database,
+        event: &web_sys::IdbVersionChangeEvent,
+    ) -> crate::Result<Self> {
+        let inner = match event.target() {
+            Some(target) => match target.dyn_ref::<web_sys::IdbOpenDbRequest>() {
+                Some(req) => req
+                    .transaction()
+                    .ok_or(Error::from(UnexpectedDataError::TransactionNotFound)),
+                None => Err(SimpleValueError::DynCast(target.unchecked_into()).into()),
+            },
+            None => Err(UnexpectedDataError::NoEventTarget.into()),
+        }?;
+        Ok(Self::new(db, inner))
+    }
+
+    /// Set the behavior for when the [`Transaction`] is dropped
+    pub fn on_drop(&mut self, on_drop: OnTransactionDrop) {
+        self.on_drop = on_drop;
     }
 
     /// Rolls back all the changes to objects in the database associated with this transaction.
@@ -114,7 +163,18 @@ impl Drop for Transaction<'_> {
     fn drop(&mut self) {
         self.listeners.free_listeners();
 
-        if !self.done {
+        // Given that the default behavior in JavaScript is to commit the
+        // transaction when it is dropped, we only need to perform an action
+        // when we want to abort the transaction.
+        //
+        // Typically, it would make sense to explicitly commit the transaction
+        // with `TransactionSys::do_commit` when encountering `OnTransactionDrop::Commit`.
+        // However, for some reason, explicitly committing the transaction causes
+        // tests in a headless Chrome browser to hang, even though they pass in
+        // all other contexts, including a non-headless Chrome browser. So, until
+        // this is resolved, it is best to let `OnTransactionDrop::Commit` be
+        // handled implicitly by the JavaScript runtime.
+        if !self.done & matches!(self.on_drop, OnTransactionDrop::Abort) {
             let _ = self.as_sys().abort();
         }
     }
@@ -126,6 +186,7 @@ impl Debug for Transaction<'_> {
             .field("transaction", self.as_sys())
             .field("db", self.db())
             .field("done", &self.done)
+            .field("on_drop", &self.on_drop)
             .finish()
     }
 }

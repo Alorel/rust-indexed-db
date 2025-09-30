@@ -28,7 +28,8 @@ pub async fn multi_threaded_executor() {
     }
 
     let db = Database::open("my_db_multi_threaded_executor")
-        .with_on_upgrade_needed(|_, db| {
+        .with_on_upgrade_needed(|_, tx| {
+            let db = tx.db();
             db.create_object_store("my_store")
                 .with_auto_increment(true)
                 .build()?;
@@ -50,47 +51,46 @@ pub async fn opening_a_database_and_making_some_schema_changes() {
     let _ = Database::open("opening_a_database_and_making_some_schema_changes")
         .with_version(2u8)
         .with_on_blocked(|_| Ok(()))
-        .with_on_upgrade_needed_fut(|event, db| {
+        .with_on_upgrade_needed_fut(async |event, tx| {
+            let db = tx.db();
             // Convert versions from floats to integers to allow using them in match expressions
             let old_version = event.old_version() as u64;
             let new_version = event.new_version().map(|v| v as u64);
 
-            async move {
-                match (old_version, new_version) {
-                    (0, Some(1)) => {
-                        db.create_object_store("my_store")
-                            .with_auto_increment(true)
-                            .build()?;
-                    }
-                    (prev, Some(2)) => {
-                        if prev == 1 {
-                            db.delete_object_store("my_store")?;
-                        }
-
-                        // Create an object store and await its transaction before inserting data.
-                        db.create_object_store("my_other_store")
-                            .with_auto_increment(true)
-                            .build()?
-                            .transaction()
-                            .on_done()?
-                            .await
-                            .into_result()?;
-
-                        //- Start a new transaction & add some data
-                        let tx = db
-                            .transaction("my_other_store")
-                            .with_mode(TransactionMode::Readwrite)
-                            .build()?;
-                        let store = tx.object_store("my_other_store")?;
-                        store.add("foo").await?;
-                        store.add("bar").await?;
-                        tx.commit().await?;
-                    }
-                    _ => {}
+            match (old_version, new_version) {
+                (0, Some(1)) => {
+                    db.create_object_store("my_store")
+                        .with_auto_increment(true)
+                        .build()?;
                 }
+                (prev, Some(2)) => {
+                    if prev == 1 {
+                        db.delete_object_store("my_store")?;
+                    }
 
-                Ok(())
+                    // Create an object store and await its transaction before inserting data.
+                    db.create_object_store("my_other_store")
+                        .with_auto_increment(true)
+                        .build()?
+                        .transaction()
+                        .on_done()?
+                        .await
+                        .into_result()?;
+
+                    //- Start a new transaction & add some data
+                    let tx = db
+                        .transaction("my_other_store")
+                        .with_mode(TransactionMode::Readwrite)
+                        .build()?;
+                    let store = tx.object_store("my_other_store")?;
+                    store.add("foo").await?;
+                    store.add("bar").await?;
+                    tx.commit().await?;
+                }
+                _ => {}
             }
+
+            Ok(())
         })
         .await
         .expect("Error opening DB");
@@ -111,7 +111,8 @@ pub async fn rw_serde() {
     }
 
     let db = Database::open("example_rw_serde")
-        .with_on_upgrade_needed(|_, db| {
+        .with_on_upgrade_needed(|_, tx| {
+            let db = tx.db();
             db.create_object_store("users")
                 .with_key_path("id".into())
                 .build()?;
@@ -159,7 +160,8 @@ pub async fn readme_example() {
     async fn main() -> indexed_db_futures::OpenDbResult<()> {
         let db = Database::open("my_db_readme_example")
             .with_version(2u8)
-            .with_on_upgrade_needed(|event, db| {
+            .with_on_upgrade_needed(|event, tx| {
+                let db = tx.db();
                 // Convert versions from floats to integers to allow using them in match expressions
                 let old_version = event.old_version() as u64;
                 let new_version = event.new_version().map(|v| v as u64);
@@ -262,7 +264,8 @@ pub async fn iterating_a_cursor() {
 
     let db = Database::open("example_iterating_a_cursor")
         .with_version(2u8)
-        .with_on_upgrade_needed(|_, db| {
+        .with_on_upgrade_needed(|_, tx| {
+            let db = tx.db();
             db.create_object_store("my_store").build()?;
             Ok(())
         })
@@ -329,7 +332,8 @@ pub async fn iterating_index_as_a_stream() {
     }
 
     let db = Database::open("example_iterating_index_as_a_stream")
-        .with_on_upgrade_needed(|_, db| {
+        .with_on_upgrade_needed(|_, tx| {
+            let db = tx.db();
             let store = db
                 .create_object_store("my_store")
                 .with_key_path("id".into())

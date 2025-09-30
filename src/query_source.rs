@@ -30,34 +30,34 @@ mod get_key;
 pub trait QuerySource {
     /// Count the number of documents in the index/object store.
     #[errdoc(QuerySource(InvalidStateError, TransactionInactiveError, DataError))]
-    fn count(&self) -> Count<Self>
+    fn count(&self) -> Count<'_, Self>
     where
         Self: Sized;
 
     /// Get one record from the object store or index. Returns the first match if a non-[only](KeyRange::Only) key is
     /// provided and multiple records match.
     #[errdoc(QuerySource(InvalidStateError, TransactionInactiveError, DataError))]
-    fn get<V, K, I>(&self, key: I) -> Get<Self, K, V>
+    fn get<V, K, I>(&self, key: I) -> Get<'_, Self, K, V>
     where
         Self: Sized,
         I: Into<KeyRange<K>>;
 
     /// Return the first matching key selected by the specified query.
     #[errdoc(QuerySource(TransactionInactiveError, InvalidStateError, DataError))]
-    fn get_key<K, I>(&self, key_range: I) -> GetKey<Self, K>
+    fn get_key<K, I>(&self, key_range: I) -> GetKey<'_, Self, K>
     where
         Self: Sized,
         I: Into<KeyRange<K>>;
 
     /// Get all records in the object store or index.
     #[errdoc(QuerySource(InvalidStateError, TransactionInactiveError, DataError))]
-    fn get_all<V>(&self) -> GetAllRecords<Self, V>
+    fn get_all<V>(&self) -> GetAllRecords<'_, Self, V>
     where
         Self: Sized;
 
     /// Get all keys in the object store or index.
     #[errdoc(QuerySource(InvalidStateError, TransactionInactiveError, DataError))]
-    fn get_all_keys<K>(&self) -> GetAllKeys<Self, K>
+    fn get_all_keys<K>(&self) -> GetAllKeys<'_, Self, K>
     where
         Self: Sized;
 
@@ -77,12 +77,12 @@ pub trait QuerySource {
         /// Open a cursor that iterates over the records in the index or object store.
         /// Resolves to `None` if the cursor is empty.
         #[errdoc(Cursor(TransactionInactiveError, DataErrorOpen, InvalidStateErrorOpen))]
-        fn open_cursor(&self) -> CursorBuilder<Self> where Self: Sized;
+        fn open_cursor(&self) -> CursorBuilder<'_, Self> where Self: Sized;
 
         /// Open a cursor that iterates over the keys in the index or object store.
         /// Resolves to `None` if the cursor is empty.
         #[errdoc(Cursor(TransactionInactiveError, DataErrorOpen, InvalidStateErrorOpen))]
-        fn open_key_cursor(&self) -> KeyCursorBuilder<Self> where Self: Sized;
+        fn open_key_cursor(&self) -> KeyCursorBuilder<'_, Self> where Self: Sized;
     }
 }
 
@@ -99,7 +99,7 @@ impl<T: SystemRepr<Repr = R>, R: QuerySourceInternal> QuerySource for T {
     }
 
     #[inline]
-    fn count(&self) -> Count<Self> {
+    fn count(&self) -> Count<'_, Self> {
         Count::new(self)
     }
 
@@ -110,14 +110,14 @@ impl<T: SystemRepr<Repr = R>, R: QuerySourceInternal> QuerySource for T {
         }
     }
 
-    fn get<V, K, I>(&self, key: I) -> Get<Self, K, V>
+    fn get<V, K, I>(&self, key: I) -> Get<'_, Self, K, V>
     where
         I: Into<KeyRange<K>>,
     {
         Get::new(self, key.into())
     }
 
-    fn get_key<K, I>(&self, key_range: I) -> GetKey<Self, K>
+    fn get_key<K, I>(&self, key_range: I) -> GetKey<'_, Self, K>
     where
         I: Into<KeyRange<K>>,
     {
@@ -125,24 +125,24 @@ impl<T: SystemRepr<Repr = R>, R: QuerySourceInternal> QuerySource for T {
     }
 
     #[inline]
-    fn get_all<V>(&self) -> GetAllRecords<Self, V> {
+    fn get_all<V>(&self) -> GetAllRecords<'_, Self, V> {
         GetAllRecords::new(self)
     }
 
     #[inline]
-    fn get_all_keys<K>(&self) -> GetAllKeys<Self, K> {
+    fn get_all_keys<K>(&self) -> GetAllKeys<'_, Self, K> {
         GetAllKeys::new(self)
     }
 
     iffeat! {
         #[cfg(feature = "cursors")]
         #[inline]
-        fn open_cursor(&self) -> CursorBuilder<Self> {
+        fn open_cursor(&self) -> CursorBuilder<'_, Self> {
             CursorBuilder::new(self)
         }
 
         #[inline]
-        fn open_key_cursor(&self) -> KeyCursorBuilder<Self> {
+        fn open_key_cursor(&self) -> KeyCursorBuilder<'_, Self> {
             KeyCursorBuilder::new(self)
         }
     }

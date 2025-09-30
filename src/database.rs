@@ -52,7 +52,7 @@ impl Database {
     /// Create an object store with the given name.
     #[generic_bounds(store_name(N))]
     #[inline]
-    pub fn create_object_store<N>(&self, name: N) -> StoreBuilder<N> {
+    pub fn create_object_store<N>(&self, name: N) -> StoreBuilder<'_, N> {
         StoreBuilder::new(self, name)
     }
 
@@ -99,7 +99,7 @@ impl Database {
 
     /// List the names of the object stores within this database.
     #[inline]
-    pub fn object_store_names(&self) -> DomStringIter {
+    pub fn object_store_names(&self) -> DomStringIter<'_> {
         DomStringIter::new(self.as_sys().object_store_names())
     }
 
@@ -107,7 +107,7 @@ impl Database {
     /// [`Build::build`](crate::Build::build).
     #[errdoc(Database(NotFoundErrorTx, InvalidAccessErrorTx))]
     #[inline]
-    pub fn transaction<S: ObjectStoreName>(&self, store_names: S) -> TransactionBuilder<S> {
+    pub fn transaction<S: ObjectStoreName>(&self, store_names: S) -> TransactionBuilder<'_, S> {
         TransactionBuilder::new(self, store_names)
     }
 

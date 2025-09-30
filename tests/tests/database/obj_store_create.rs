@@ -12,7 +12,8 @@ pub async fn happy_path() {
 #[wasm_bindgen_test]
 pub async fn constraint_error() {
     let err = Database::open(random_str())
-        .with_on_upgrade_needed(move |_, db| {
+        .with_on_upgrade_needed(move |_, tx| {
+            let db = tx.db();
             let name = random_str();
             db.create_object_store(&name).build()?;
             db.create_object_store(&name).build()?;
@@ -27,7 +28,8 @@ pub async fn constraint_error() {
 #[wasm_bindgen_test]
 pub async fn invalid_access_error() {
     let err = Database::open(random_str())
-        .with_on_upgrade_needed(move |_, db| {
+        .with_on_upgrade_needed(move |_, tx| {
+            let db = tx.db();
             db.create_object_store(&db.name())
                 .with_auto_increment(true)
                 .with_key_path("".into())

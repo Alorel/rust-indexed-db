@@ -7,7 +7,8 @@ pub mod on_done;
 
 #[wasm_bindgen_test]
 pub async fn multi_store() {
-    let db = random_db_with_init(move |_, db| {
+    let db = random_db_with_init(move |_, tx| {
+        let db = tx.db();
         db.create_object_store("s1").build()?;
         db.create_object_store("s2").build()?;
         Ok(())

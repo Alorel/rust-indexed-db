@@ -5,7 +5,8 @@ use idb_fut::KeyPath;
 #[wasm_bindgen_test]
 pub async fn auto_incremented() {
     let db = Database::open(random_str())
-        .with_on_upgrade_needed(move |_, db| {
+        .with_on_upgrade_needed(move |_, tx| {
+            let db = tx.db();
             db.create_object_store(&db.name())
                 .with_auto_increment(true)
                 .build()?;
@@ -21,7 +22,8 @@ pub async fn auto_incremented() {
 #[wasm_bindgen_test]
 pub async fn none() {
     let db = Database::open(random_str())
-        .with_on_upgrade_needed(move |_, db| {
+        .with_on_upgrade_needed(move |_, tx| {
+            let db = tx.db();
             db.create_object_store(&db.name()).build()?;
             Ok(())
         })
@@ -35,7 +37,8 @@ pub async fn none() {
 #[wasm_bindgen_test]
 pub async fn explicit() {
     let db = Database::open(random_str())
-        .with_on_upgrade_needed(move |_, db| {
+        .with_on_upgrade_needed(move |_, tx| {
+            let db = tx.db();
             db.create_object_store(&db.name())
                 .with_key_path(Key::KEY_PATH)
                 .build()?;

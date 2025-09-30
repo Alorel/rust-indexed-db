@@ -19,7 +19,7 @@ impl ObjectStore<'_> {
     ))]
     #[generic_bounds(index_name(N), key_path(KP))]
     #[inline]
-    pub fn create_index<N, KP>(&self, name: N, key_path: KeyPath<KP>) -> IndexBuilder<N, KP> {
+    pub fn create_index<N, KP>(&self, name: N, key_path: KeyPath<KP>) -> IndexBuilder<'_, N, KP> {
         IndexBuilder::new(self, name, key_path)
     }
 
@@ -38,7 +38,7 @@ impl ObjectStore<'_> {
     /// Open an index with the given name
     #[errdoc(Index(InvalidStateErrorIndex, NotFoundError))]
     #[allow(clippy::missing_errors_doc)]
-    pub fn index(&self, name: &str) -> crate::Result<Index> {
+    pub fn index(&self, name: &str) -> crate::Result<Index<'_>> {
         match self.as_sys().index(name) {
             Ok(sys) => Ok(Index::new(self, sys)),
             Err(e) => Err(e.into()),
@@ -46,7 +46,7 @@ impl ObjectStore<'_> {
     }
 
     /// Return the names of the indices on this object store.
-    pub fn index_names(&self) -> DomStringIter {
+    pub fn index_names(&self) -> DomStringIter<'_> {
         DomStringIter::new(self.as_sys().index_names())
     }
 }

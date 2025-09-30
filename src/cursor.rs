@@ -64,7 +64,7 @@ impl<'a, Qs> Cursor<'a, Qs> {
     /// followed by [`value`](https://developer.mozilla.org/en-US/docs/Web/API/IDBCursorWithValue/value) in JS.
     #[errdoc(Cursor(TransactionInactiveError, InvalidStateError))]
     #[inline]
-    pub fn next_record<T>(&mut self) -> CursorNextRequest<T>
+    pub fn next_record<T>(&mut self) -> CursorNextRequest<'_, T>
     where
         T: TryFromJs,
     {
@@ -73,7 +73,7 @@ impl<'a, Qs> Cursor<'a, Qs> {
 
     /// Mirror of [`Self::next_record`] for `serde`-deserialisable values.
     #[cfg(feature = "serde")]
-    pub fn next_record_ser<T>(&mut self) -> CursorNextRequest<T>
+    pub fn next_record_ser<T>(&mut self) -> CursorNextRequest<'_, T>
     where
         T: crate::serde::DeserialiseFromJs,
     {
@@ -106,7 +106,7 @@ impl<'a, Qs> Cursor<'a, Qs> {
         DataCloneError,
     ))]
     #[inline]
-    pub fn update<V>(&self, value: V) -> Update<V> {
+    pub fn update<V>(&self, value: V) -> Update<'_, V> {
         Update::new(self, value)
     }
 

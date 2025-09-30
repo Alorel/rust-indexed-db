@@ -36,7 +36,7 @@ pub struct TypedArraySlice<'a, T>(#[new(name(source))] &'a [T]);
 impl<T> TypedArray<T> {
     /// Convert this [`TypedArray`] into a [`TypedArraySlice`].
     #[must_use]
-    pub fn as_slice(&self) -> TypedArraySlice<T> {
+    pub fn as_slice(&self) -> TypedArraySlice<'_, T> {
         TypedArraySlice::new(&self.0)
     }
 }

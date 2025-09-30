@@ -22,7 +22,7 @@ pub enum KeyPath<T = String> {
 
 #[generic_bounds(key_path(T))]
 impl<T> KeyPath<T> {
-    /// Convert the key path to a JsValue.
+    /// Convert the key path to a `JsValue`.
     pub fn to_js(&self) -> JsValue {
         match self {
             Self::One(v) => JsValue::from_str(v.as_ref()),

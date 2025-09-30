@@ -1,5 +1,6 @@
 use crate::database::{Database, VersionChangeEvent};
 use crate::error::{Error, UnexpectedDataError};
+use crate::transaction::{OnTransactionDrop, Transaction};
 use internal_macros::generic_bounds;
 use std::fmt::{Debug, Display, Formatter};
 use std::mem;
@@ -56,9 +57,16 @@ impl OpenDbListener {
             #[cfg(feature = "async-upgrade")]
             async_notify: Self::fake_rx(),
             listener: Closure::once(move |evt: web_sys::IdbVersionChangeEvent| {
-                let res = Database::from_event(&evt)
-                    .and_then(move |db| callback(VersionChangeEvent::new(evt), db));
-
+                let res = Database::from_event(&evt).and_then(|db| {
+                    Transaction::from_raw_version_change_event(&db, &evt).and_then(|mut tx| {
+                        callback(VersionChangeEvent::new(evt), &tx).inspect(|()| {
+                            // If the callback succeeded, we want to ensure that
+                            // the transaction is committed when dropped and not
+                            // aborted.
+                            tx.on_drop(OnTransactionDrop::Commit);
+                        })
+                    })
+                });
                 Self::handle_result(LBL_UPGRADE, &status, res)
             }),
         }
@@ -154,8 +162,8 @@ const _: () = {
             tokio::sync::mpsc::unbounded_channel().1
         }
 
-        #[generic_bounds(upgrade_async_cb(fun(Fn), fut(Fut)))]
-        pub(crate) fn new_upgrade_fut<Fn, Fut>(callback: Fn) -> Self {
+        #[generic_bounds(upgrade_async_cb(Fn))]
+        pub(crate) fn new_upgrade_fut<Fn>(callback: Fn) -> Self {
             let status = Status::new();
             let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
             Self {
@@ -168,11 +176,21 @@ const _: () = {
                     };
 
                     Self::set_status(&status, Status::Pending, LBL_UPGRADE)?;
-                    let fut = callback(VersionChangeEvent::new(evt), db);
-
                     wasm_bindgen_futures::spawn_local(async move {
-                        let result = match fut.await {
-                            Ok(()) => Status::Ok,
+                        let db = db;
+                        let result = match Transaction::from_raw_version_change_event(&db, &evt) {
+                            Ok(mut transaction) => {
+                                match callback(VersionChangeEvent::new(evt), &transaction).await {
+                                    Ok(()) => {
+                                        // If the callback succeeded, we want to ensure that
+                                        // the transaction is committed when dropped and not
+                                        // aborted.
+                                        transaction.on_drop(OnTransactionDrop::Commit);
+                                        Status::Ok
+                                    }
+                                    Err(e) => Status::Err(e),
+                                }
+                            }
                             Err(e) => Status::Err(e),
                         };
                         let _ = Self::set_status(&status, result, LBL_UPGRADE);

@@ -90,7 +90,7 @@ impl<'a, Qs, T> Stream<Cursor<'a, Qs>, T> {
         DataErrorUpdate,
         DataCloneError
     ))]
-    pub fn update<V>(&self, value: V) -> super::Update<V> {
+    pub fn update<V>(&self, value: V) -> super::Update<'_, V> {
         self.cursor.update(value)
     }
 

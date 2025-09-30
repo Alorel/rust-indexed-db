@@ -32,7 +32,7 @@ impl<'a> TransactionRef<'a> {
     /// Get an object store that's part of the transaction.
     #[errdoc(Transaction(NotFoundError, InvalidStateError))]
     #[allow(clippy::missing_errors_doc)]
-    pub fn object_store(&self, name: &str) -> crate::Result<ObjectStore> {
+    pub fn object_store(&self, name: &str) -> crate::Result<ObjectStore<'_>> {
         match self.as_sys().object_store(name) {
             Ok(store) => Ok(ObjectStore::new(store, self)),
             Err(e) => Err(e.into()),
@@ -41,7 +41,7 @@ impl<'a> TransactionRef<'a> {
 
     /// Get an iterator of the names of [`IdbObjectStore`](ObjectStore) objects
     /// associated with the transaction.
-    pub fn object_store_names(&self) -> DomStringIter {
+    pub fn object_store_names(&self) -> DomStringIter<'_> {
         DomStringIter::new(self.as_sys().object_store_names())
     }
 

@@ -34,7 +34,7 @@ impl<'a, Qs> KeyCursor<'a, Qs> {
     /// followed by [`key`](https://developer.mozilla.org/en-US/docs/Web/API/IDBCursor/key) in JS.
     #[inline]
     #[errdoc(Cursor(TransactionInactiveError, InvalidStateError))]
-    pub fn next_key<T>(&mut self) -> CursorNextRequest<T>
+    pub fn next_key<T>(&mut self) -> CursorNextRequest<'_, T>
     where
         T: TryFromJs,
     {
@@ -44,7 +44,7 @@ impl<'a, Qs> KeyCursor<'a, Qs> {
     /// Mirror of [`Self::next_key`] for `serde`-deserialisable keys.
     #[inline]
     #[cfg(feature = "serde")]
-    pub fn next_key_ser<T>(&mut self) -> CursorNextRequest<T>
+    pub fn next_key_ser<T>(&mut self) -> CursorNextRequest<'_, T>
     where
         T: crate::serde::DeserialiseFromJs,
     {
