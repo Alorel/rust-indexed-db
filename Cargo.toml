@@ -73,7 +73,7 @@ impartial-ord = "1.0.6"
 js-sys = "0.3.72"
 log = "0.4.22"
 macroific = { version = "2" }
-rand = "0.8"
+rand = "0.9"
 sealed = "0.6"
 serde = "1"
 serde-wasm-bindgen = "0.6"
