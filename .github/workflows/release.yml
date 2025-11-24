@@ -25,7 +25,7 @@ jobs:
       version: ${{ steps.changelog.outputs.version }}
       issues-closed: ${{ steps.changelog.outputs.issues-closed }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         name: Checkout
         with:
           fetch-depth: 0
@@ -79,7 +79,7 @@ jobs:
     env:
       CARGO_INCREMENTAL: 0
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         name: Checkout
         with:
           fetch-depth: 1
@@ -100,7 +100,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         name: Checkout
         with:
           fetch-depth: 1
@@ -126,7 +126,7 @@ jobs:
     needs: [ release-github, bump ]
     if: ${{ needs.bump.outputs.issues-closed }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         name: Checkout
         with:
           fetch-depth: 1
