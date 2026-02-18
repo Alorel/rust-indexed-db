@@ -40,7 +40,7 @@ async fn main() -> indexed_db_futures::OpenDbResult<()> {
             let old_version = event.old_version() as u64;
             let new_version = event.new_version().map(|v| v as u64);
 
-            match (event.old_version(), event.new_version()) {
+            match (old_version, new_version) {
                 (0, Some(1)) => {
                     db.create_object_store("my_store")
                         .with_auto_increment(true)
