@@ -7,7 +7,7 @@ use syn::punctuated::Punctuated;
 use syn::spanned::Spanned;
 use syn::{DeriveInput, LitStr, Token, Type};
 
-const FMT: ModulePrefix<2> = ModulePrefix::new(["core", "fmt"]);
+const FMT: ModulePrefix<'static> = ModulePrefix::new(&["core", "fmt"]);
 
 pub(crate) struct FromDomException {
     ident: Ident,

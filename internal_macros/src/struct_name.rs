@@ -23,8 +23,8 @@ impl Parse for StructName {
 impl StructName {
     #[must_use]
     pub fn into_token_stream(self) -> TokenStream {
-        const TRAIT_NAME: ModulePrefix<'static, 3> =
-            ModulePrefix::new(["crate", "internal_utils", "StructName"]).with_leading_sep(false);
+        const TRAIT_NAME: ModulePrefix<'static> =
+            ModulePrefix::new(&["crate", "internal_utils", "StructName"]).with_leading_sep(false);
 
         let Self { ident, generics } = self;
 

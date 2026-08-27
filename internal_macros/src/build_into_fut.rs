@@ -5,12 +5,12 @@ use quote::quote;
 use syn::parse::{Parse, ParseStream};
 use syn::{parse_quote, DeriveInput, GenericParam, Generics, WherePredicate};
 
-const UNPIN: ModulePrefix<'static, 3> = ModulePrefix::new(["core", "marker", "Unpin"]);
-const BUILD: ModulePrefix<'static, 3> =
-    ModulePrefix::new(["crate", "build", "Build"]).with_leading_sep(false);
+const UNPIN: ModulePrefix<'static> = ModulePrefix::new(&["core", "marker", "Unpin"]);
+const BUILD: ModulePrefix<'static> =
+    ModulePrefix::new(&["crate", "build", "Build"]).with_leading_sep(false);
 
-const MB_ERR: ModulePrefix<'static, 3> =
-    ModulePrefix::new(["crate", "future", "MaybeErrored"]).with_leading_sep(false);
+const MB_ERR: ModulePrefix<'static> =
+    ModulePrefix::new(&["crate", "future", "MaybeErrored"]).with_leading_sep(false);
 
 pub(crate) struct BuildIntoFut {
     ident: Ident,

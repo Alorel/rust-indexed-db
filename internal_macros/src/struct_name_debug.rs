@@ -6,7 +6,7 @@ use syn::parse::{Parse, ParseStream};
 use syn::{parse_macro_input, Expr, Generics, LitStr};
 
 pub(crate) const ATTR_NAME: &str = "debug";
-const FMT: ModulePrefix<'static, 2> = ModulePrefix::new(["std", "fmt"]);
+const FMT: ModulePrefix<'static> = ModulePrefix::new(&["std", "fmt"]);
 
 pub struct StructNameDebug {
     ident: Ident,
