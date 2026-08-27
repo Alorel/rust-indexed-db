@@ -4,8 +4,8 @@ use quote::quote;
 use syn::parse::{Parse, ParseStream};
 use syn::{parse_quote, DeriveInput, Generics};
 
-const POLL_UNPINNED: ModulePrefix<'static, 3> =
-    ModulePrefix::new(["crate", "future", "PollUnpinned"]).with_leading_sep(false);
+const POLL_UNPINNED: ModulePrefix<'static> =
+    ModulePrefix::new(&["crate", "future", "PollUnpinned"]).with_leading_sep(false);
 
 #[allow(clippy::module_name_repetitions)]
 pub struct DeriveFutureFromPollUnpinned {

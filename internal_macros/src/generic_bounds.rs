@@ -23,6 +23,7 @@ macro_rules! make_opts {
         /// | Option | Type |
         /// |--------|-----------|
         $($(#[doc = concat!(" | `", stringify!($extra_opt), "` | `", stringify!($extra_ty), "` |")])+)+
+        #[allow(clippy::doc_markdown)]
         #[derive(::macroific::attr_parse::AttributeOptions)]
         pub(super) struct $struct_name {
             $($($opt: ::syn::punctuated::Punctuated<proc_macro2::Ident, ::syn::Token![,]>,)+)+
